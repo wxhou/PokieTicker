@@ -9,7 +9,10 @@ import RangeQueryPopup from './components/RangeQueryPopup';
 import RangeNewsPanel from './components/RangeNewsPanel';
 import SimilarDaysPanel from './components/SimilarDaysPanel';
 import PredictionPanel from './components/PredictionPanel';
+import Portfolio from './components/Portfolio';
 import './App.css';
+
+const LAST_SYMBOL_KEY = 'zx_last_symbol';
 
 interface RangeSelection {
   startDate: string;
@@ -24,7 +27,10 @@ interface ArticleSelection {
   date: string;
 }
 
+type Route = 'main' | 'portfolio';
+
 function App() {
+  const [route, setRoute] = useState<Route>('main');
   const [activeTickers, setActiveTickers] = useState<string[]>([]);
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
@@ -61,8 +67,12 @@ function App() {
           .filter((t: any) => t.last_ohlc_fetch)
           .map((t: any) => t.symbol);
         setActiveTickers(tickers);
-        if (tickers.length > 0 && !selectedSymbol) {
-          setSelectedSymbol(tickers[0]);
+        // Restore last viewed symbol from localStorage, fallback to first ticker
+        const last = localStorage.getItem(LAST_SYMBOL_KEY);
+        const initial = last && tickers.includes(last) ? last : (tickers[0] ?? '');
+        if (initial) {
+          setSelectedSymbol(initial);
+          localStorage.setItem(LAST_SYMBOL_KEY, initial);
         }
       })
       .catch(console.error);
@@ -140,6 +150,7 @@ function App() {
 
   function handleSelectSymbol(symbol: string) {
     setSelectedSymbol(symbol);
+    localStorage.setItem(LAST_SYMBOL_KEY, symbol);
     setHoveredDate(null);
     setHoveredOhlc(null);
     setSelectedRange(null);
@@ -224,7 +235,8 @@ function App() {
     <div className="app">
       <header className="app-header">
         <div className="header-left">
-          <h1>PokieTicker</h1>
+          <h1 className="brand-name">涨讯</h1>
+          <span className="brand-sub">A股事件驱动分析</span>
         </div>
         <StockSelector
           activeTickers={activeTickers}
@@ -235,19 +247,19 @@ function App() {
         {selectedRange ? (
           <div className="header-ohlc">
             <span className="ohlc-date">{selectedRange.startDate} ~ {selectedRange.endDate}</span>
-            <span className="range-badge">Range Selected</span>
+            <span className="range-badge">区间已选</span>
           </div>
         ) : hoveredOhlc ? (
           <div className="header-ohlc">
             <span className="ohlc-date">{hoveredOhlc.date}</span>
-            <span className="ohlc-label">O</span>
-            <span className="ohlc-val">${hoveredOhlc.open.toFixed(2)}</span>
-            <span className="ohlc-label">H</span>
-            <span className="ohlc-val">${hoveredOhlc.high.toFixed(2)}</span>
-            <span className="ohlc-label">L</span>
-            <span className="ohlc-val">${hoveredOhlc.low.toFixed(2)}</span>
-            <span className="ohlc-label">C</span>
-            <span className="ohlc-val">${hoveredOhlc.close.toFixed(2)}</span>
+            <span className="ohlc-label">开</span>
+            <span className="ohlc-val">{hoveredOhlc.open.toFixed(2)}</span>
+            <span className="ohlc-label">高</span>
+            <span className="ohlc-val">{hoveredOhlc.high.toFixed(2)}</span>
+            <span className="ohlc-label">低</span>
+            <span className="ohlc-val">{hoveredOhlc.low.toFixed(2)}</span>
+            <span className="ohlc-label">收</span>
+            <span className="ohlc-val">{hoveredOhlc.close.toFixed(2)}</span>
             <span className={`ohlc-change ${hoveredOhlc.change >= 0 ? 'up' : 'down'}`}>
               {hoveredOhlc.change >= 0 ? '+' : ''}
               {hoveredOhlc.change.toFixed(2)}%
@@ -255,19 +267,26 @@ function App() {
           </div>
         ) : null}
         <div className="header-right">
-          <a href="https://mitrui.com" target="_blank" rel="noopener noreferrer" className="header-link">
-            mitrui.com
-          </a>
-          <a href="https://github.com/owengetinfo-design/PokieTicker" target="_blank" rel="noopener noreferrer" className="header-link header-github">
+          <button
+            className="nav-btn"
+            onClick={() => setRoute(route === 'portfolio' ? 'main' : 'portfolio')}
+          >
+            {route === 'portfolio' ? '返回分析' : '我的持仓'}
+          </button>
+          <a href="https://github.com/wxhou/PokieTicker" target="_blank" rel="noopener noreferrer" className="header-link header-github">
             <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
               <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
             </svg>
-            <span className="github-text">GitHub</span>
           </a>
         </div>
       </header>
 
-      <main className="app-main">
+      <main className={`app-main ${route === 'portfolio' ? 'portfolio-route' : ''}`}>
+        {route === 'portfolio' ? (
+          <div className="portfolio-full">
+            <Portfolio onBack={() => setRoute('main')} />
+          </div>
+        ) : (
         <div className="chart-area" ref={chartAreaRef}>
           {selectedSymbol ? (
             <>
@@ -291,25 +310,30 @@ function App() {
               )}
             </>
           ) : (
-            <div className="chart-placeholder">Select a ticker to view the chart</div>
+            <div className="chart-placeholder">请选择股票查看K线图</div>
           )}
         </div>
+        )}
         {selectedSymbol && (
+          <>
           <div className="prediction-area">
             <PredictionPanel symbol={selectedSymbol} />
           </div>
-        )}
-        <div className="news-area">
-          {selectedSymbol && (
+          <div className="news-area">
             <NewsCategoryPanel
               symbol={selectedSymbol}
               activeCategory={activeCategory}
               onCategoryChange={handleCategoryChange}
             />
-          )}
-          {renderRightPanel()}
-        </div>
+            {renderRightPanel()}
+          </div>
+          </>
+        )}
       </main>
+
+      <footer className="global-disclaimer">
+        涨讯仅供信息参考，不构成投资建议。股市有风险，投资需谨慎。本平台不具备证券投资咨询资质。
+      </footer>
     </div>
   );
 }
