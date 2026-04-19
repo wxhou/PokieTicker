@@ -1,26 +1,30 @@
+"""Stock data API — powered by AKShare (China A-share data)."""
+
+import json
 import logging
 
-from fastapi import APIRouter, Query, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta, timezone
 
+from backend.akshare.client import fetch_ohlc, fetch_news, search_stocks, resolve_code
+from backend.database import get_conn
+from backend.pipeline.alignment import align_news_for_symbol
+
 logger = logging.getLogger(__name__)
 
-from backend.database import get_conn
-from backend.polygon.client import fetch_ohlc, fetch_news, search_tickers
-
-router = APIRouter()
+router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 
 
-class AddTickerRequest(BaseModel):
-    symbol: str
+class AddStockRequest(BaseModel):
+    code: str  # e.g. "600519" or "000001"
     name: Optional[str] = None
 
 
 @router.get("")
-def list_tickers():
-    """List all tracked tickers."""
+def list_stocks():
+    """List all tracked stocks."""
     conn = get_conn()
     rows = conn.execute("SELECT * FROM tickers ORDER BY symbol").fetchall()
     conn.close()
@@ -29,42 +33,40 @@ def list_tickers():
 
 @router.get("/search")
 def search(q: str = Query(..., min_length=1)):
-    """Fuzzy search tickers via Polygon."""
-    # First check local DB
-    conn = get_conn()
-    local = conn.execute(
-        "SELECT symbol, name, sector FROM tickers WHERE symbol LIKE ? OR name LIKE ? LIMIT 10",
-        (f"%{q}%", f"%{q}%"),
-    ).fetchall()
-    conn.close()
-
-    results = [dict(r) for r in local]
-
-    # If few local results, also search Polygon
-    if len(results) < 5:
-        try:
-            remote = search_tickers(q, limit=10)
-            seen = {r["symbol"] for r in results}
-            for r in remote:
-                if r["symbol"] not in seen:
-                    results.append(r)
-        except Exception:
-            logger.debug("Polygon search failed for query=%s", q)
-
-    return results
+    """Search A-share stocks by code or name using AKShare."""
+    try:
+        results = search_stocks(q)
+        return results
+    except Exception as e:
+        logger.error("AKShare search failed: %s", e)
+        # Fallback: search local DB
+        conn = get_conn()
+        local = conn.execute(
+            "SELECT symbol, name FROM ohlc WHERE symbol LIKE ? OR symbol LIKE ? LIMIT 10",
+            (f"%{q}%", f"%{q}%"),
+        ).fetchall()
+        conn.close()
+        return [dict(r) for r in local]
 
 
-@router.get("/{symbol}/ohlc")
+@router.get("/{code}/ohlc")
 def get_ohlc(
-    symbol: str,
+    code: str,
     start: Optional[str] = None,
     end: Optional[str] = None,
 ):
-    """Get OHLC data for a symbol."""
+    """Get OHLC data for a stock.
+
+    Supports plain codes (e.g. "600519") which are auto-resolved to
+    exchange-qualified form (e.g. "600519.SH").
+    """
+    # Normalize: resolve plain code to exchange-qualified form
+    resolved = resolve_code(code)
+
     conn = get_conn()
 
     query = "SELECT * FROM ohlc WHERE symbol = ?"
-    params: list = [symbol.upper()]
+    params: list = [resolved]
 
     if start:
         query += " AND date >= ?"
@@ -78,98 +80,128 @@ def get_ohlc(
     conn.close()
 
     if not rows:
-        raise HTTPException(status_code=404, detail=f"No OHLC data for {symbol}")
+        raise HTTPException(status_code=404, detail=f"No OHLC data for {resolved}")
 
     return [dict(r) for r in rows]
 
 
+@router.get("/{code}/news")
+def get_news(code: str, limit: int = Query(20, ge=1, le=100)):
+    """Get news for a stock."""
+    resolved = resolve_code(code)
+    plain = resolved[:6]  # strip .SH/.SZ suffix for AKShare
+
+    try:
+        news_items = fetch_news(plain)
+        return news_items[:limit]
+    except Exception as e:
+        logger.error("AKShare news failed for %s: %s", code, e)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch news: {e}")
+
+
+@router.get("/{code}/limit-up-down")
+def get_limit_up_down(
+    code: str,
+    limit_type: str = Query("U", pattern="^[UD]$"),
+):
+    """Get limit-up (U) or limit-down (D) stocks for today."""
+    today = datetime.now().strftime("%Y%m%d")
+    from backend.akshare.client import fetch_limit_up_down
+    try:
+        rows = fetch_limit_up_down(today, limit_type)
+        return rows
+    except Exception as e:
+        logger.error("AKShare limit-up-down failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch limit pool: {e}")
+
+
 @router.post("")
-def add_ticker(req: AddTickerRequest, background_tasks: BackgroundTasks):
-    """Add a new ticker and trigger background data fetch."""
-    symbol = req.symbol.upper()
+def add_stock(req: AddStockRequest, background_tasks: BackgroundTasks):
+    """Add a new stock and trigger background data fetch."""
+    resolved = resolve_code(req.code)
+    plain = resolved[:6]
+
     conn = get_conn()
     conn.execute(
         "INSERT OR IGNORE INTO tickers (symbol, name) VALUES (?, ?)",
-        (symbol, req.name or symbol),
+        (resolved, req.name or plain),
     )
     conn.commit()
     conn.close()
 
-    background_tasks.add_task(_fetch_ticker_data, symbol)
-    return {"symbol": symbol, "status": "added", "message": "Data fetch started in background"}
+    background_tasks.add_task(_fetch_stock_data, resolved)
+    return {
+        "code": resolved,
+        "status": "added",
+        "message": "Data fetch started in background",
+    }
 
 
-def _fetch_ticker_data(symbol: str):
-    """Background task to fetch OHLC and news for a ticker."""
-    today = datetime.now(timezone.utc).date()
-    start = (today - timedelta(days=2 * 366)).isoformat()
-    end = today.isoformat()
+def _fetch_stock_data(resolved: str):
+    """Background task to fetch OHLC and news for a stock via AKShare."""
+    today = datetime.now().date()
+    start = (today - timedelta(days=2 * 366)).isoformat().replace("-", "")
+    end = today.isoformat().replace("-", "")
+    plain = resolved[:6]
 
     try:
         # Fetch OHLC
-        ohlc_rows = fetch_ohlc(symbol, start, end)
+        ohlc_rows = fetch_ohlc(plain, start, end)
         conn = get_conn()
         for row in ohlc_rows:
+            # Convert date format from YYYY-MM-DD to YYYY-MM-DD for storage
             conn.execute(
                 """INSERT OR IGNORE INTO ohlc
-                   (symbol, date, open, high, low, close, volume, vwap, transactions)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (symbol, date, open, high, low, close, volume, pct_chg)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    symbol,
+                    resolved,
                     row["date"],
                     row["open"],
                     row["high"],
                     row["low"],
                     row["close"],
                     row["volume"],
-                    row["vwap"],
-                    row["transactions"],
+                    row.get("pct_chg", 0),
                 ),
             )
         conn.execute(
             "UPDATE tickers SET last_ohlc_fetch = ? WHERE symbol = ?",
-            (end, symbol),
+            (end, resolved),
         )
         conn.commit()
 
         # Fetch news
-        import json
-
-        articles = fetch_news(symbol, start, end)
-        for art in articles:
-            news_id = art.get("id")
+        news_items = fetch_news(plain)
+        for art in news_items:
+            news_id = art.get("news_id")
             if not news_id:
                 continue
-            tickers = art.get("tickers") or []
             conn.execute(
                 """INSERT OR IGNORE INTO news_raw
-                   (id, title, description, publisher, author,
-                    published_utc, article_url, amp_url, tickers_json, insights_json)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (id, title, description, published_utc, article_url)
+                   VALUES (?, ?, ?, ?, ?)""",
                 (
                     news_id,
                     art.get("title"),
-                    art.get("description"),
-                    art.get("publisher"),
-                    art.get("author"),
-                    art.get("published_utc"),
-                    art.get("article_url"),
-                    art.get("amp_url"),
-                    json.dumps(tickers),
-                    json.dumps(art.get("insights")) if art.get("insights") else None,
+                    art.get("content"),
+                    art.get("published"),
+                    art.get("url"),
                 ),
             )
-            for tk in tickers:
-                conn.execute(
-                    "INSERT OR IGNORE INTO news_ticker (news_id, symbol) VALUES (?, ?)",
-                    (news_id, tk),
-                )
+            conn.execute(
+                "INSERT OR IGNORE INTO news_ticker (news_id, symbol) VALUES (?, ?)",
+                (news_id, plain),
+            )
 
         conn.execute(
             "UPDATE tickers SET last_news_fetch = ? WHERE symbol = ?",
-            (end, symbol),
+            (end, resolved),
         )
         conn.commit()
         conn.close()
+
+        # Run alignment
+        align_news_for_symbol(resolved)
     except Exception:
-        logger.exception("Error fetching data for %s", symbol)
+        logger.exception("Error fetching data for %s", resolved)

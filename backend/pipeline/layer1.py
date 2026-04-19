@@ -1,119 +1,59 @@
-"""Layer 1: Claude Haiku — 50 articles packed into 1 API call.
+"""Layer 1: MiniMax/DeepSeek AI — 50 articles packed into 1 API call.
 
-Strategy:
-1. Local keyword extraction: for long descriptions (>500 chars), extract only
-   sentences mentioning the company (ticker, name, CEO, products, etc.)
-2. Pack 50 articles into a single prompt → 1 API call
-3. Get back a compact JSON array — English only (no Chinese, save output tokens)
+Strategy (Chinese A-share version):
+1. Keyword extraction: use jieba Chinese segmentation to extract relevant
+   sentences from long descriptions (>500 chars), keeping sentences that
+   contain stock-related keywords
+2. Pack up to 50 articles into a single prompt → 1 API call
+3. MiniMax first, DeepSeek fallback
+4. Get back a compact JSON array in Chinese
 """
 
-import json
-import re
-from typing import List, Dict, Any
+import jieba
+import logging
+from typing import Any, Dict, List
 
-import anthropic
-
-from backend.config import settings
 from backend.database import get_conn
+from backend.ai.provider import UnifiedSentimentProvider
 
-MODEL = "claude-haiku-4-5-20251001"
+logger = logging.getLogger(__name__)
+
 BATCH_SIZE = 50  # articles per API call
-MAX_OUTPUT_TOKENS = 4096  # enough for 50 articles (~70 tokens each)
 
-# Comprehensive keyword mappings for extraction
-# ticker, company name, short name, CEO, key products, subsidiaries
-TICKER_KEYWORDS: Dict[str, List[str]] = {
-    "BABA": ["alibaba", "ali baba", "baba", "daniel zhang", "joe tsai",
-             "taobao", "tmall", "alipay", "ant group", "alicloud",
-             "aliyun", "cainiao", "lazada", "ele.me"],
-    "AAPL": ["apple", "aapl", "tim cook", "iphone", "ipad", "macbook",
-             "apple watch", "vision pro", "app store", "ios", "macos"],
-    "TSLA": ["tesla", "tsla", "elon musk", "model 3", "model y",
-             "model s", "model x", "cybertruck", "gigafactory",
-             "supercharger", "autopilot", "full self-driving", "fsd"],
-    "NVDA": ["nvidia", "nvda", "jensen huang", "geforce", "rtx",
-             "cuda", "a100", "h100", "h200", "b100", "b200",
-             "dgx", "drive", "omniverse", "tensorrt"],
-    "GLD": ["spdr gold", "gld", "gold trust", "gold etf", "gold shares"],
-    "MSFT": ["microsoft", "msft", "satya nadella", "windows", "azure",
-             "office 365", "xbox", "linkedin", "github", "copilot"],
-    "GOOGL": ["google", "alphabet", "googl", "goog", "sundar pichai",
-              "youtube", "waymo", "deepmind", "gemini", "android",
-              "google cloud", "pixel"],
-    "AMZN": ["amazon", "amzn", "andy jassy", "aws", "prime",
-             "alexa", "kindle", "whole foods"],
-    "META": ["meta platforms", "meta", "facebook", "zuckerberg",
-             "instagram", "whatsapp", "threads", "oculus", "quest"],
-    "AMD":  ["amd", "advanced micro", "lisa su", "radeon", "ryzen",
-             "epyc", "xilinx", "instinct"],
+# Chinese A-share stop words for keyword extraction
+_CHINESE_STOP_WORDS = {
+    "的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都", "一", "一个",
+    "上", "也", "很", "到", "说", "要", "去", "你", "会", "着", "没有", "看", "好",
+    "自己", "这", "那", "他", "她", "它", "们", "但", "却", "而", "已", "还", "被",
+    "让", "把", "与", "及", "等", "并", "个", "中", "为", "将", "对", "以", "从",
+    "之", "来", "后", "前", "能", "只", "应", "又", "或", "其", "此", "因", "所",
+    "当", "则", "于", "过", "可", "多", "最", "更", "比", "做", "主", "者",
 }
 
-# Minimum description length to trigger extraction (shorter ones sent in full)
-EXTRACT_THRESHOLD = 500
+# English stop words
+_ENGLISH_STOP_WORDS = {
+    "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+    "have", "has", "had", "do", "does", "did", "will", "would", "could", "should",
+    "may", "might", "must", "shall", "can", "of", "in", "to", "for", "on", "with",
+    "at", "by", "from", "as", "or", "and", "but", "if", "then", "so", "that",
+    "this", "these", "those", "it", "its", "they", "them", "their", "which", "what",
+}
 
 
-def _get_keywords(symbol: str) -> List[str]:
-    """Get all keywords for a ticker. Falls back to just the symbol."""
-    kws = [symbol.lower()]
-    kws.extend(TICKER_KEYWORDS.get(symbol, []))
-    return kws
+def _extract_keywords(text: str) -> List[str]:
+    """Extract meaningful keywords from text using jieba."""
+    if not text:
+        return []
+    words = jieba.cut(text)
+    return [
+        w.strip() for w in words
+        if len(w.strip()) >= 2
+        and w.strip() not in _CHINESE_STOP_WORDS
+        and w.strip().lower() not in _ENGLISH_STOP_WORDS
+    ]
 
 
-def _extract_relevant_text(description: str, symbol: str) -> str:
-    """For long descriptions, extract only sentences mentioning the company.
-
-    Short descriptions (<500 chars) are returned in full.
-    Long descriptions are filtered to company-relevant sentences + 1 neighbor.
-    """
-    if not description:
-        return ""
-
-    desc = description.strip()
-    if len(desc) < EXTRACT_THRESHOLD:
-        return desc
-
-    keywords = _get_keywords(symbol)
-    sentences = re.split(r'(?<=[.!?])\s+', desc)
-
-    # Find sentences with keyword matches
-    relevant: set = set()
-    for i, sent in enumerate(sentences):
-        lower = sent.lower()
-        if any(kw in lower for kw in keywords):
-            # Keep this sentence + 1 before + 1 after for context
-            for j in range(max(0, i - 1), min(len(sentences), i + 2)):
-                relevant.add(j)
-
-    if not relevant:
-        # No keyword match — just return first 2 sentences
-        return " ".join(sentences[:2])
-
-    return " ".join(sentences[i] for i in sorted(relevant))
-
-
-def _build_batch_prompt(symbol: str, articles: List[Dict[str, Any]]) -> str:
-    """Build a single prompt containing up to 50 articles."""
-    lines = []
-    for i, art in enumerate(articles):
-        extract = _extract_relevant_text(art.get("description") or "", symbol)
-        lines.append(f"[{i}] {art['title']}")
-        if extract:
-            lines.append(f"  > {extract}")
-
-    return f"""Rate these {len(articles)} articles for {symbol}. Return JSON array only.
-
-{chr(10).join(lines)}
-
-Format: [{{"i":0,"r":"y"|"n","s":"+"|"-"|"0","e":"summary","u":"up reason","d":"down reason"}}]
-r: "y" = article specifically discusses {symbol}, "n" = irrelevant/brief mention
-s: "+" positive, "-" negative, "0" neutral
-e: 10-word summary of what happened (empty if irrelevant)
-u: why this could push {symbol} stock UP, e.g. "strong earnings beat expectations" (empty if none or irrelevant)
-d: why this could push {symbol} stock DOWN, e.g. "antitrust lawsuit threatens App Store revenue" (empty if none or irrelevant)
-JSON:"""
-
-
-def get_pending_articles(symbol: str, limit: int = 10000) -> List[Dict[str, Any]]:
+def _get_pending_articles(symbol: str, limit: int = 10000) -> List[Dict[str, Any]]:
     """Get articles that passed Layer 0 but haven't been processed by Layer 1."""
     conn = get_conn()
     rows = conn.execute(
@@ -131,47 +71,24 @@ def get_pending_articles(symbol: str, limit: int = 10000) -> List[Dict[str, Any]
     return [dict(r) for r in rows]
 
 
-def process_batch_group(
-    symbol: str, articles: List[Dict[str, Any]]
+def _process_batch_group(
+    symbol: str, articles: List[Dict[str, Any]], provider: UnifiedSentimentProvider
 ) -> Dict[str, int]:
     """Process a group of up to 50 articles in a single API call."""
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     conn = get_conn()
-
     stats = {"processed": 0, "relevant": 0, "irrelevant": 0, "errors": 0}
 
-    prompt = _build_batch_prompt(symbol, articles)
-
     try:
-        message = client.messages.create(
-            model=MODEL,
-            max_tokens=MAX_OUTPUT_TOKENS,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        sentiment_results = provider.analyze(articles, symbol)
 
-        text = message.content[0].text if message.content else "[]"
-
-        # Parse JSON array
-        start = text.find("[")
-        end = text.rfind("]") + 1
-        if start < 0 or end <= start:
-            stats["errors"] = len(articles)
-            conn.close()
-            return stats
-
-        results = json.loads(text[start:end])
-
-        for item in results:
-            idx = item.get("i")
+        for result in sentiment_results:
+            idx = result.index
             if idx is None or idx >= len(articles):
                 stats["errors"] += 1
                 continue
 
             art = articles[idx]
-            is_relevant = item.get("r") in ("y", "relevant")
-            relevance = "relevant" if is_relevant else "irrelevant"
-            raw_s = item.get("s", "0")
-            sentiment = {"+": "positive", "-": "negative"}.get(raw_s, "neutral")
+            relevance = "relevant" if result.is_relevant else "irrelevant"
 
             conn.execute(
                 """INSERT OR REPLACE INTO layer1_results
@@ -182,21 +99,21 @@ def process_batch_group(
                     art["id"],
                     symbol,
                     relevance,
-                    item.get("e", ""),
-                    sentiment,
-                    item.get("u", ""),
-                    item.get("d", ""),
+                    result.key_discussion,
+                    result.sentiment,
+                    result.reason_growth,
+                    result.reason_decrease,
                 ),
             )
             stats["processed"] += 1
-            if is_relevant:
+            if result.is_relevant:
                 stats["relevant"] += 1
             else:
                 stats["irrelevant"] += 1
 
-    except (json.JSONDecodeError, KeyError, anthropic.APIError) as e:
+    except Exception as e:
+        logger.error("Batch error for %s: %s", symbol, e)
         stats["errors"] = len(articles)
-        print(f"Batch error for {symbol}: {e}")
 
     conn.commit()
     conn.close()
@@ -208,9 +125,11 @@ def run_layer1(symbol: str, max_articles: int = 10000) -> Dict[str, Any]:
 
     Processes in groups of 50 articles per API call.
     """
-    articles = get_pending_articles(symbol, limit=max_articles)
+    articles = _get_pending_articles(symbol, limit=max_articles)
     if not articles:
         return {"status": "no_pending", "total": 0}
+
+    provider = UnifiedSentimentProvider()
 
     total_stats = {
         "total": len(articles), "processed": 0, "relevant": 0,
@@ -219,7 +138,7 @@ def run_layer1(symbol: str, max_articles: int = 10000) -> Dict[str, Any]:
 
     for i in range(0, len(articles), BATCH_SIZE):
         chunk = articles[i : i + BATCH_SIZE]
-        stats = process_batch_group(symbol, chunk)
+        stats = _process_batch_group(symbol, chunk, provider)
 
         total_stats["processed"] += stats["processed"]
         total_stats["relevant"] += stats["relevant"]
@@ -227,146 +146,10 @@ def run_layer1(symbol: str, max_articles: int = 10000) -> Dict[str, Any]:
         total_stats["errors"] += stats["errors"]
         total_stats["api_calls"] += 1
 
-        print(f"  [{symbol}] Batch {total_stats['api_calls']}: "
-              f"{stats['processed']}/{len(chunk)} ok, {stats['relevant']} relevant")
-
-    return total_stats
-
-
-# === Batch API support (for very large jobs, 50% cheaper) ===
-
-def submit_batch_api(symbol: str, articles: List[Dict[str, Any]]) -> str:
-    """Submit to Anthropic Batch API for async processing."""
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-
-    requests = []
-    for i in range(0, len(articles), BATCH_SIZE):
-        chunk = articles[i : i + BATCH_SIZE]
-        chunk_ids = "|".join(a["id"] for a in chunk)
-        prompt = _build_batch_prompt(symbol, chunk)
-
-        requests.append(
-            {
-                "custom_id": f"{symbol}|{i}|{chunk_ids}",
-                "params": {
-                    "model": MODEL,
-                    "max_tokens": MAX_OUTPUT_TOKENS,
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-            }
+        logger.info(
+            "[%s] Batch %d: %d/%d ok, %d relevant, %d errors",
+            symbol, total_stats["api_calls"],
+            stats["processed"], len(chunk), stats["relevant"], stats["errors"],
         )
 
-    batch = client.messages.batches.create(requests=requests)
-
-    conn = get_conn()
-    conn.execute(
-        """INSERT INTO batch_jobs (batch_id, symbol, status, total, created_at)
-           VALUES (?, ?, ?, ?, datetime('now'))""",
-        (batch.id, symbol, batch.processing_status, len(articles)),
-    )
-    conn.commit()
-    conn.close()
-    return batch.id
-
-
-def check_batch_status(batch_id: str) -> Dict[str, Any]:
-    """Check the status of a batch job."""
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    batch = client.messages.batches.retrieve(batch_id)
-
-    conn = get_conn()
-    conn.execute(
-        "UPDATE batch_jobs SET status = ? WHERE batch_id = ?",
-        (batch.processing_status, batch_id),
-    )
-    conn.commit()
-    conn.close()
-
-    return {
-        "batch_id": batch.id,
-        "status": batch.processing_status,
-        "request_counts": {
-            "processing": batch.request_counts.processing,
-            "succeeded": batch.request_counts.succeeded,
-            "errored": batch.request_counts.errored,
-            "canceled": batch.request_counts.canceled,
-            "expired": batch.request_counts.expired,
-        },
-    }
-
-
-def collect_batch_results(batch_id: str) -> Dict[str, int]:
-    """Collect results from a completed batch API job."""
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    conn = get_conn()
-
-    stats = {"processed": 0, "relevant": 0, "irrelevant": 0, "errors": 0}
-
-    for result in client.messages.batches.results(batch_id):
-        custom_id = result.custom_id
-        parts = custom_id.split("|", 2)
-        if len(parts) < 3:
-            stats["errors"] += 1
-            continue
-
-        symbol = parts[0]
-        article_ids = parts[2].split("|")
-
-        if result.result.type != "succeeded":
-            stats["errors"] += len(article_ids)
-            continue
-
-        message = result.result.message
-        text = message.content[0].text if message.content else "[]"
-
-        try:
-            start = text.find("[")
-            end = text.rfind("]") + 1
-            if start < 0 or end <= start:
-                stats["errors"] += len(article_ids)
-                continue
-
-            items = json.loads(text[start:end])
-
-            for item in items:
-                idx = item.get("i")
-                if idx is None or idx >= len(article_ids):
-                    stats["errors"] += 1
-                    continue
-
-                is_relevant = item.get("r") in ("y", "relevant")
-                relevance = "relevant" if is_relevant else "irrelevant"
-                raw_s = item.get("s", "0")
-                sentiment = {"+": "positive", "-": "negative"}.get(raw_s, "neutral")
-
-                conn.execute(
-                    """INSERT OR REPLACE INTO layer1_results
-                       (news_id, symbol, relevance, key_discussion, sentiment,
-                        reason_growth, reason_decrease)
-                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        article_ids[idx],
-                        symbol,
-                        relevance,
-                        item.get("e", ""),
-                        sentiment,
-                        item.get("u", ""),
-                        item.get("d", ""),
-                    ),
-                )
-                stats["processed"] += 1
-                if is_relevant:
-                    stats["relevant"] += 1
-                else:
-                    stats["irrelevant"] += 1
-
-        except (json.JSONDecodeError, KeyError):
-            stats["errors"] += len(article_ids)
-
-    conn.execute(
-        "UPDATE batch_jobs SET status = 'collected', finished_at = datetime('now') WHERE batch_id = ?",
-        (batch_id,),
-    )
-    conn.commit()
-    conn.close()
-    return stats
+    return total_stats

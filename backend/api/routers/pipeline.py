@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 from backend.database import get_conn
 from backend.polygon.client import fetch_ohlc, fetch_news
 from backend.pipeline.layer0 import run_layer0
-from backend.pipeline.layer1 import get_pending_articles, run_layer1, check_batch_status, collect_batch_results
+from backend.pipeline.layer1 import run_layer1
 from backend.pipeline.alignment import align_news_for_symbol
 
 import json
@@ -122,12 +122,9 @@ def trigger_process(req: ProcessRequest):
 
 @router.get("/batch/{batch_id}")
 def get_batch_status(batch_id: str):
-    """Check status of a batch job."""
-    status = check_batch_status(batch_id)
-
-    # If ended, collect results
-    if status["status"] == "ended":
-        collect_stats = collect_batch_results(batch_id)
-        status["collect_stats"] = collect_stats
-
-    return status
+    """Batch API is no longer supported. Returns deprecated status."""
+    return {
+        "batch_id": batch_id,
+        "status": "deprecated",
+        "message": "Batch API was removed. Use /process instead which runs synchronous analysis.",
+    }

@@ -14,9 +14,9 @@ def align_news_for_symbol(symbol: str) -> dict:
     """Align all unaligned news for a symbol to trading days with forward returns."""
     conn = get_conn()
 
-    # Load OHLC dates and closes
+    # Load OHLC dates, closes, and pct_chg
     ohlc_rows = conn.execute(
-        "SELECT date, close FROM ohlc WHERE symbol = ? ORDER BY date ASC",
+        "SELECT date, close, pct_chg FROM ohlc WHERE symbol = ? ORDER BY date ASC",
         (symbol,),
     ).fetchall()
 
@@ -27,6 +27,7 @@ def align_news_for_symbol(symbol: str) -> dict:
     dates = [r["date"] for r in ohlc_rows]
     idx = {d: i for i, d in enumerate(dates)}
     close = {r["date"]: r["close"] for r in ohlc_rows}
+    pct_chg = {r["date"]: r["pct_chg"] or 0 for r in ohlc_rows}
 
     # Get news not yet aligned for this symbol
     news_rows = conn.execute(
@@ -65,10 +66,15 @@ def align_news_for_symbol(symbol: str) -> dict:
             else:
                 returns[f"ret_t{h}"] = None
 
+        # Limit-up/down: A股涨跌停阈值 9.5%（ST股 4.5%，科创板 20%）
+        chg = pct_chg.get(trade_date, 0)
+        limit_up = 1 if chg >= 9.5 else 0
+        limit_down = 1 if chg <= -9.5 else 0
+
         conn.execute(
             """INSERT OR IGNORE INTO news_aligned
-               (news_id, symbol, trade_date, published_utc, ret_t0, ret_t1, ret_t3, ret_t5, ret_t10)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (news_id, symbol, trade_date, published_utc, ret_t0, ret_t1, ret_t3, ret_t5, ret_t10, limit_up, limit_down)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 row["id"],
                 symbol,
@@ -79,6 +85,8 @@ def align_news_for_symbol(symbol: str) -> dict:
                 returns.get("ret_t3"),
                 returns.get("ret_t5"),
                 returns.get("ret_t10"),
+                limit_up,
+                limit_down,
             ),
         )
         aligned_count += 1

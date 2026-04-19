@@ -1,19 +1,20 @@
-"""Layer 2: On-demand Sonnet deep analysis.
+"""Layer 2: On-demand deep analysis.
 
 Triggered when user clicks a news article. Cached in layer2_results.
-Cost: ~$0.003/article, only on user click.
+Uses MiniMax first, DeepSeek fallback.
 """
 
 import json
-from typing import Dict, Any, Optional, List
+import re
+import logging
+from typing import Any, Dict, Optional
 from datetime import datetime, timezone
-
-import anthropic
 
 from backend.config import settings
 from backend.database import get_conn
+from backend.ai.provider import UnifiedSentimentProvider
 
-MODEL = "claude-sonnet-4-5-20250929"
+logger = logging.getLogger(__name__)
 
 
 def get_cached(news_id: str, symbol: str) -> Optional[Dict[str, Any]]:
@@ -30,7 +31,7 @@ def get_cached(news_id: str, symbol: str) -> Optional[Dict[str, Any]]:
 
 
 def analyze_article(news_id: str, symbol: str) -> Dict[str, Any]:
-    """Run deep Sonnet analysis on a single article. Returns cached if available."""
+    """Run deep analysis on a single article. Returns cached if available."""
     cached = get_cached(news_id, symbol)
     if cached:
         return cached
@@ -38,7 +39,7 @@ def analyze_article(news_id: str, symbol: str) -> Dict[str, Any]:
     # Fetch article data
     conn = get_conn()
     article = conn.execute(
-        "SELECT title, description, article_url FROM news_raw WHERE id = ?",
+        "SELECT title, description, content FROM news_raw WHERE id = ?",
         (news_id,),
     ).fetchone()
     conn.close()
@@ -46,36 +47,40 @@ def analyze_article(news_id: str, symbol: str) -> Dict[str, Any]:
     if not article:
         return {"error": "Article not found"}
 
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    title = article["title"] or ""
+    desc = article["description"] or article["content"] or ""
 
-    prompt = f"""You are a senior financial analyst. Provide a deep analysis of this news article's impact on {symbol} stock.
+    # Try AI analysis first
+    provider = UnifiedSentimentProvider()
+    articles = [{
+        "id": news_id,
+        "title": title,
+        "description": desc,
+    }]
 
-TITLE: {article['title']}
+    discussion, growth_reasons, decrease_reasons = "", "", ""
 
-DESCRIPTION: {article['description'] or 'No description available'}
-
-Provide your analysis as JSON:
-{{
-  "discussion": "Detailed analysis of the article's impact on {symbol} (200-300 words)",
-  "growth_reasons": "Specific factors from this news that could drive {symbol} stock price up (bullet points)",
-  "decrease_reasons": "Specific risk factors from this news that could drive {symbol} stock price down (bullet points)"
-}}
-
-Respond with JSON only."""
-
-    message = client.messages.create(
-        model=MODEL,
-        max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    text = message.content[0].text if message.content else ""
     try:
-        start = text.find("{")
-        end = text.rfind("}") + 1
-        parsed = json.loads(text[start:end]) if start >= 0 and end > start else {}
-    except json.JSONDecodeError:
-        parsed = {"discussion": text, "growth_reasons": "", "decrease_reasons": ""}
+        # Try batch-style analysis first
+        results = provider.analyze(articles, symbol)
+        if results and results[0].is_relevant:
+            discussion = results[0].key_discussion
+            growth_reasons = results[0].reason_growth
+            decrease_reasons = results[0].reason_decrease
+        elif results:
+            # Not relevant, still use what we got
+            discussion = results[0].key_discussion or ""
+    except Exception as e:
+        logger.warning("Batch analysis failed, trying detailed analysis: %s", e)
+
+    # If no meaningful result, generate detailed analysis
+    if not discussion and title:
+        try:
+            discussion, growth_reasons, decrease_reasons = _generate_analysis(
+                title, desc, symbol, provider
+            )
+        except Exception as e:
+            logger.error("Layer2 analysis failed for %s: %s", news_id, e)
 
     # Cache result
     conn = get_conn()
@@ -86,9 +91,9 @@ Respond with JSON only."""
         (
             news_id,
             symbol,
-            parsed.get("discussion", ""),
-            parsed.get("growth_reasons", ""),
-            parsed.get("decrease_reasons", ""),
+            discussion,
+            growth_reasons,
+            decrease_reasons,
             datetime.now(timezone.utc).isoformat(),
         ),
     )
@@ -98,55 +103,236 @@ Respond with JSON only."""
     return {
         "news_id": news_id,
         "symbol": symbol,
-        "discussion": parsed.get("discussion", ""),
-        "growth_reasons": parsed.get("growth_reasons", ""),
-        "decrease_reasons": parsed.get("decrease_reasons", ""),
+        "discussion": discussion,
+        "growth_reasons": growth_reasons,
+        "decrease_reasons": decrease_reasons,
     }
 
 
-def generate_story(symbol: str, csv_content: str) -> str:
-    """Generate an AI story about stock price movements. Port from app.py."""
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+def _generate_analysis(
+    title: str, desc: str, symbol: str, provider: UnifiedSentimentProvider
+) -> tuple:
+    """Generate detailed analysis with robust JSON parsing."""
+    prompt = f"""分析以下新闻对股票 {symbol} 的影响，以JSON格式返回详细分析。
 
-    message = client.messages.create(
-        model=MODEL,
-        max_tokens=4096,
-        messages=[
-            {
-                "role": "user",
-                "content": f"""Below is {symbol}'s OHLC data and related news. Please generate a compelling investment story based on this data.
+新闻标题：{title}
+新闻内容：{desc[:2000]}
 
-Data:
-```
-{csv_content[-50000:]}
-```
+JSON格式：
+{{
+  "discussion": "详细分析该新闻对{symbol}的影响（100-200字）",
+  "growth_reasons": "利好因素：具体说明为何该消息可能推动{symbol}上涨",
+  "decrease_reasons": "利空因素：具体说明为何该消息可能给{symbol}带来下行压力"
+}}
 
-Story requirements:
-1. Tell the complete journey of the stock price from start to end, highlighting key turning points
-2. Analyze the underlying business and economic factors in conjunction with news events
-3. Start the story with a brief 1-2 sentence summary of the stock's situation
-4. Analyze changes in market sentiment and investment opportunities
-5. Output in HTML format using <h3> headings, <p> paragraphs, <strong> emphasis tags
+只返回JSON，不要包含任何其他文字。"""
 
-Write in English, approximately 500-1000 words, with vivid and narrative language. Focus on:
-- Major price volatility periods with a timeline
-- Impact of key news events
-- Comparisons with competitors
-- Regulatory environment and policy impacts""",
-            }
-        ],
+    try:
+        results = _call_direct_analysis(prompt, symbol)
+    except Exception:
+        try:
+            results = _call_direct_analysis(prompt, symbol, use_deepseek=True)
+        except Exception as e:
+            logger.error("Both providers failed in layer2: %s", e)
+            return (
+                "分析生成失败，请稍后重试。",
+                "",
+                "",
+            )
+
+    return (
+        results.get("discussion", ""),
+        results.get("growth_reasons", ""),
+        results.get("decrease_reasons", ""),
     )
 
-    return message.content[0].text if message.content else ""
+
+def _call_direct_analysis(
+    prompt: str, symbol: str, use_deepseek: bool = False
+) -> Dict[str, Any]:
+    """Call provider directly with a custom prompt and robust JSON parsing."""
+    if use_deepseek:
+        from backend.ai.deepseek import DeepSeekProvider
+        prov = DeepSeekProvider()
+        try:
+            with __import__("httpx").Client(timeout=15) as client:
+                resp = client.post(
+                    "https://api.deepseek.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {prov.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "deepseek-chat",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.1,
+                        "max_tokens": 1024,
+                    },
+                )
+                resp.raise_for_status()
+                text = resp.json()["choices"][0]["message"]["content"]
+        except Exception as e:
+            raise RuntimeError(f"DeepSeek call failed: {e}") from e
+    else:
+        from backend.ai.minimax import MiniMaxProvider
+        prov = MiniMaxProvider()
+        try:
+            with __import__("httpx").Client(timeout=10) as client:
+                resp = client.post(
+                    "https://api.minimaxi.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {prov.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "MiniMax-M2.5",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.1,
+                        "max_tokens": 1024,
+                    },
+                )
+                resp.raise_for_status()
+                text = resp.json()["choices"][0]["message"]["content"]
+        except Exception as e:
+            raise RuntimeError(f"MiniMax call failed: {e}") from e
+
+    return _robust_json_parse(text)
 
 
-def analyze_range(symbol: str, start_date: str, end_date: str, question: Optional[str] = None) -> Dict[str, Any]:
-    """Analyze what drove price movement in a date range using Sonnet."""
+def _robust_json_parse(text: str) -> Dict[str, Any]:
+    """Parse JSON with robustness for extra backticks, trailing commas, missing fields."""
+    text = text.strip()
+    # Remove markdown code fences
+    text = re.sub(r"```(?:json)?", "", text)
+    text = text.strip()
+
+    # Find first { to last }
+    start = text.find("{")
+    end = text.rfind("}")
+    if start < 0 or end <= start:
+        # Fallback: try to find any JSON-like content
+        start = text.find("[")
+        end = text.rfind("]")
+        if start >= 0 and end > start:
+            try:
+                items = json.loads(text[start:end + 1])
+                if isinstance(items, list) and items:
+                    return items[0]
+            except Exception:
+                pass
+        raise ValueError(f"Cannot find JSON in response: {text[:200]}")
+
+    json_str = text[start:end + 1]
+
+    # Remove trailing commas using a state-machine that respects string boundaries
+    json_str = _strip_trailing_commas(json_str)
+
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError as e:
+        logger.error("JSON parse error: %s, raw: %s", e, json_str[:500])
+        return {
+            "discussion": text[:200],
+            "growth_reasons": "",
+            "decrease_reasons": "",
+        }
+
+
+def _strip_trailing_commas(s: str) -> str:
+    """Remove trailing commas before } or ] while respecting string boundaries."""
+    result = []
+    i = 0
+    n = len(s)
+    while i < n:
+        c = s[i]
+        if c == '"':
+            # String start — copy until closing quote
+            result.append(c)
+            i += 1
+            while i < n:
+                c2 = s[i]
+                result.append(c2)
+                if c2 == '"':
+                    i += 1
+                    break
+                if c2 == "\\" and i + 1 < n:
+                    result.append(s[i + 1])
+                    i += 2
+                else:
+                    i += 1
+        elif c == ",":
+            # Check if this comma is followed by whitespace and then } or ]
+            j = i + 1
+            while j < n and s[j] in " \t\n\r":
+                j += 1
+            if j < n and s[j] in "}]":
+                # Trailing comma — skip it
+                i = j
+            else:
+                result.append(c)
+                i += 1
+        else:
+            result.append(c)
+            i += 1
+    return "".join(result)
+
+
+def generate_story(symbol: str, csv_content: str) -> str:
+    """Generate an AI story about stock price movements."""
+    # Use unified provider
+    provider = UnifiedSentimentProvider()
+
+    prompt = f"""根据以下{symbol}的OHLC数据和相关新闻，生成一份有吸引力的投资故事。
+
+数据摘要：
+{csv_content[-30000:]}
+
+要求：
+1. 讲述股价从开始到结束的完整旅程，突出关键转折点
+2. 结合新闻事件分析底层业务和经济因素
+3. 以1-2句话的概况开头
+4. 分析市场情绪变化和投资机会
+5. 用HTML格式输出，使用<h3>标题、<p>段落、<strong>强调标签
+6. 约500-1000字，使用生动叙述性语言
+7. 关注：价格大幅波动时期及时间线、关键新闻事件影响、与竞争对比、监管和政策影响
+
+请直接返回HTML内容。"""
+
+    try:
+        from backend.ai.minimax import MiniMaxProvider
+        prov = MiniMaxProvider()
+        import httpx
+        with httpx.Client(timeout=15) as client:
+            resp = client.post(
+                "https://api.minimaxi.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {prov.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "MiniMax-M2.5",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.3,
+                    "max_tokens": 4096,
+                },
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        logger.error("generate_story failed: %s", e)
+        return f"<p>故事生成失败，请稍后重试。</p><p>错误: {e}</p>"
+
+
+def analyze_range(
+    symbol: str, start_date: str, end_date: str, question: Optional[str] = None
+) -> Dict[str, Any]:
+    """Analyze what drove price movement in a date range using AI."""
     conn = get_conn()
 
     # Get OHLC data for range
     ohlc_rows = conn.execute(
-        "SELECT date, open, high, low, close, volume FROM ohlc WHERE symbol = ? AND date >= ? AND date <= ? ORDER BY date ASC",
+        """SELECT date, open, high, low, close, volume, pct_chg
+           FROM ohlc WHERE symbol = ? AND date >= ? AND date <= ? ORDER BY date ASC""",
         (symbol, start_date, end_date),
     ).fetchall()
 
@@ -162,7 +348,7 @@ def analyze_range(symbol: str, start_date: str, end_date: str, question: Optiona
 
     # Get news in range, prioritize by impact
     news_rows = conn.execute(
-        """SELECT nr.title, l1.chinese_summary, l1.key_discussion,
+        """SELECT nr.title, l1.key_discussion,
                   l1.sentiment, l1.reason_growth, l1.reason_decrease,
                   na.trade_date, na.ret_t0
            FROM news_aligned na
@@ -178,60 +364,53 @@ def analyze_range(symbol: str, start_date: str, end_date: str, question: Optiona
 
     news_count = len(news_rows)
 
-    # Build news context for prompt
+    # Build news context
     news_context = ""
     for i, row in enumerate(news_rows[:30], 1):
-        ret = f"Same-day change: {row['ret_t0']*100:.2f}%" if row["ret_t0"] else ""
+        ret = f"当日涨跌: {row['ret_t0']*100:.2f}%" if row["ret_t0"] else ""
         news_context += f"\n{i}. [{row['trade_date']}] {row['title']}\n"
-        if row["chinese_summary"]:
-            news_context += f"   Summary: {row['chinese_summary']}\n"
+        if row["key_discussion"]:
+            news_context += f"   摘要: {row['key_discussion']}\n"
         if ret:
             news_context += f"   {ret}\n"
 
-    # Build OHLC summary
-    ohlc_summary = f"Open: ${open_price:.2f}, Close: ${close_price:.2f}, High: ${high_price:.2f}, Low: ${low_price:.2f}, Change: {price_change_pct:+.2f}%, Trading days: {len(ohlc_rows)}"
-
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-
-    question_part = f"The user's specific question is: {question}. Please focus on answering this question in your analysis.\n\n" if question else ""
-
-    prompt = f"""You are a senior financial analyst. Please analyze {symbol}'s stock price movement from {start_date} to {end_date}.
-
-Price data:
-{ohlc_summary}
-
-Related news during this period ({news_count} articles):
-{news_context if news_context else "No related news during this period"}
-
-{question_part}Please return the analysis in JSON format:
-{{
-  "summary": "A brief overview in 1-2 sentences",
-  "key_events": ["Key event 1", "Key event 2", ...],
-  "bullish_factors": ["Bullish factor 1", ...],
-  "bearish_factors": ["Bearish factor 1", ...],
-  "trend_analysis": "A detailed trend analysis in 100-150 words"
-}}
-
-Return JSON only."""
-
-    message = client.messages.create(
-        model=MODEL,
-        max_tokens=2048,
-        messages=[{"role": "user", "content": prompt}],
+    ohlc_summary = (
+        f"开盘: {open_price:.2f}, 收盘: {close_price:.2f}, "
+        f"最高: {high_price:.2f}, 最低: {low_price:.2f}, "
+        f"涨跌幅: {price_change_pct:+.2f}%, 交易日: {len(ohlc_rows)}天"
     )
 
-    text = message.content[0].text if message.content else ""
+    question_part = f"用户问题: {question}\n\n" if question else ""
+
+    prompt = f"""分析{symbol}在{start_date}至{end_date}期间的股价变动原因。
+
+价格数据：
+{ohlc_summary}
+
+相关新闻（共{news_count}篇）：
+{news_context if news_context else "该期间无相关新闻"}
+
+{question_part}请以JSON格式返回分析结果：
+{{
+  "summary": "1-2句话概况",
+  "key_events": ["关键事件1", "关键事件2", ...],
+  "bullish_factors": ["利好因素1", ...],
+  "bearish_factors": ["利空因素1", ...],
+  "trend_analysis": "详细趋势分析（100-150字）"
+}}
+
+只返回JSON。"""
+
     try:
-        start_idx = text.find("{")
-        end_idx = text.rfind("}") + 1
-        analysis = json.loads(text[start_idx:end_idx]) if start_idx >= 0 and end_idx > start_idx else {}
-    except json.JSONDecodeError:
-        analysis = {
-            "summary": text[:100],
+        results = _call_direct_analysis(prompt, symbol)
+    except Exception as e:
+        logger.error("analyze_range failed: %s", e)
+        results = {
+            "summary": f"分析{symbol}期间股价变动",
             "key_events": [],
             "bullish_factors": [],
             "bearish_factors": [],
-            "trend_analysis": text,
+            "trend_analysis": f"数据加载失败: {e}",
         }
 
     return {
@@ -245,5 +424,5 @@ Return JSON only."""
         "low_price": low_price,
         "news_count": news_count,
         "trading_days": len(ohlc_rows),
-        "analysis": analysis,
+        "analysis": results,
     }
