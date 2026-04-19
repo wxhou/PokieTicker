@@ -200,8 +200,8 @@ export default function PredictionPanel({ symbol }: Props) {
     setLoading(true);
     setError('');
     Promise.all([
-      axios.get(`/api/predict/${symbol}/forecast?window=7`).then((res) => res.data as Forecast).catch(() => null),
-      axios.get(`/api/predict/${symbol}/forecast?window=30`).then((res) => res.data as Forecast).catch(() => null),
+      axios.get(`/api/predict/${symbol}/forecast?window=7`).then((res) => res.status < 400 ? res.data as Forecast : null).catch(() => null),
+      axios.get(`/api/predict/${symbol}/forecast?window=30`).then((res) => res.status < 400 ? res.data as Forecast : null).catch(() => null),
     ])
       .then(([f7, f30]) => {
         setForecast7(f7);
@@ -214,7 +214,7 @@ export default function PredictionPanel({ symbol }: Props) {
   const keywords = useMemo(() => {
     const fc = forecast7 || forecast30;
     if (!fc) return [];
-    return extractKeywords(fc.news_summary.top_headlines);
+    return fc.news_summary ? extractKeywords(fc.news_summary.top_headlines) : [];
   }, [forecast7, forecast30]);
 
   // Primary forecast for the header summary
@@ -229,20 +229,25 @@ export default function PredictionPanel({ symbol }: Props) {
     return (
       <div className="pred-panel">
         <div className="pred-header" onClick={() => setExpanded(!expanded)}>
-          <span className="pred-title">Forecast</span>
+          <span className="pred-title">预测</span>
           <span className="pred-loading-dot" />
-          <span className="pred-loading-text">Analyzing recent news...</span>
+          <span className="pred-loading-text">分析近期新闻...</span>
         </div>
       </div>
     );
   }
 
-  if (error || (!forecast7 && !forecast30)) {
+  const hasData = !!(forecast7 || forecast30);
+
+  if (error || !hasData) {
     return (
       <div className="pred-panel">
         <div className="pred-header">
-          <span className="pred-title">Forecast</span>
-          <span className="pred-no-model">{error || 'No data'}</span>
+          <span className="pred-title">预测</span>
+          <span className="pred-no-model">{error || '无数据'}</span>
+        </div>
+        <div className="pred-disclaimer">
+          ⚠️ ML预测基于美股数据训练，A股仅供参考
         </div>
       </div>
     );
@@ -252,7 +257,7 @@ export default function PredictionPanel({ symbol }: Props) {
     <div className={`pred-panel ${expanded ? 'pred-expanded' : ''}`}>
       {/* Header bar */}
       <div className="pred-header" onClick={() => setExpanded(!expanded)}>
-        <span className="pred-title">Forecast</span>
+        <span className="pred-title">预测</span>
 
         {primary && (
           <>
@@ -260,7 +265,7 @@ export default function PredictionPanel({ symbol }: Props) {
               {isUp ? '\u2191' : '\u2193'}
             </div>
             <span className={`pred-dir ${isUp ? 'up' : 'down'}`}>
-              {primary.direction.toUpperCase()}
+              {isUp ? '上涨' : '下跌'}
             </span>
             <div className="pred-conf-bar">
               <div
@@ -274,12 +279,19 @@ export default function PredictionPanel({ symbol }: Props) {
 
         {ns && (
           <span className="pred-news-badge">
-            {ns.total} news · {ns.positive}+ {ns.negative}-
+            {ns.total}条 · {ns.positive}+ {ns.negative}-
           </span>
         )}
 
         <span className="pred-expand-icon">{expanded ? '\u25B2' : '\u25BC'}</span>
       </div>
+
+      {/* Experimental disclaimer */}
+      {expanded && (
+        <div className="pred-disclaimer">
+          ⚠️ ML预测基于美股数据训练，A股仅供参考
+        </div>
+      )}
 
       {/* Expanded details */}
       {expanded && (
@@ -287,7 +299,7 @@ export default function PredictionPanel({ symbol }: Props) {
           {/* Keyword tags (shared, show once) */}
           {keywords.length > 0 && (
             <div className="fc-keywords-section">
-              <div className="fc-section-title">Key Topics</div>
+              <div className="fc-section-title">关键主题</div>
               <div className="fc-keywords">
                 {keywords.map((kw) => (
                   <span key={kw} className="fc-keyword-pill">{kw}</span>
@@ -358,7 +370,7 @@ function ForecastSection({
 
   return (
     <div className="fc-section-block">
-      <div className="fc-section-divider">{label} Forecast</div>
+      <div className="fc-section-divider">{label} 预测</div>
 
       {/* AI Prediction Hero */}
       {primary && (
@@ -366,7 +378,7 @@ function ForecastSection({
           <span className="fc-hero-arrow">{isUp ? '\u2191' : '\u2193'}</span>
           <div className="fc-hero-text">
             <span className="fc-hero-label">{label}:</span>
-            <span className="fc-hero-dir">{isUp ? 'Bullish' : 'Bearish'}</span>
+            <span className="fc-hero-dir">{isUp ? '看多' : '看空'}</span>
           </div>
           <span className="fc-hero-conf">{(primary.confidence * 100).toFixed(0)}%</span>
         </div>
@@ -375,7 +387,7 @@ function ForecastSection({
       {/* Structured analysis bullets */}
       {conclusionBullets.length > 0 && (
         <div className="fc-analysis">
-          <div className="fc-section-title">Analysis</div>
+          <div className="fc-section-title">分析</div>
           <ul className="fc-bullet-list">
             {conclusionBullets.map((bullet, i) => (
               <li key={i} className="fc-bullet-item">{renderStyledText(bullet)}</li>
@@ -394,7 +406,7 @@ function ForecastSection({
       {/* Top Impact News */}
       {ns.top_impact && ns.top_impact.length > 0 && (
         <div className="fc-impact-section">
-          <div className="fc-section-title">Key Impact News</div>
+          <div className="fc-section-title">重点新闻</div>
           {ns.top_impact.map((article) => {
             const retClass = (article.ret_t0 ?? 0) >= 0 ? 'up' : 'down';
             const deep = deepResults[article.news_id];
@@ -406,7 +418,7 @@ function ForecastSection({
                     {article.ret_t0 != null ? `${article.ret_t0 >= 0 ? '+' : ''}${article.ret_t0.toFixed(2)}%` : '-'}
                   </span>
                   <span className={`fc-impact-sentiment ${article.sentiment || 'unknown'}`}>
-                    {article.sentiment === 'positive' ? 'Bullish' : article.sentiment === 'negative' ? 'Bearish' : article.sentiment === 'neutral' ? 'Neutral' : 'N/A'}
+                    {article.sentiment === 'positive' ? '利好' : article.sentiment === 'negative' ? '利空' : article.sentiment === 'neutral' ? '中性' : 'N/A'}
                   </span>
                   <span className="fc-impact-date">{article.date}</span>
                 </div>
@@ -419,13 +431,13 @@ function ForecastSection({
                     <div className="fc-deep-discussion">{deep.discussion}</div>
                     {deep.growth_reasons && (
                       <div className="fc-deep-reasons fc-deep-bull">
-                        <span className="fc-deep-reasons-label">{'▲ Bullish Factors'}</span>
+                        <span className="fc-deep-reasons-label">{'▲ 看多因素'}</span>
                         <div className="fc-deep-reasons-text">{deep.growth_reasons}</div>
                       </div>
                     )}
                     {deep.decrease_reasons && (
                       <div className="fc-deep-reasons fc-deep-bear">
-                        <span className="fc-deep-reasons-label">{'▼ Risk Factors'}</span>
+                        <span className="fc-deep-reasons-label">{'▼ 风险因素'}</span>
                         <div className="fc-deep-reasons-text">{deep.decrease_reasons}</div>
                       </div>
                     )}
@@ -445,7 +457,7 @@ function ForecastSection({
                         .finally(() => setDeepLoading(null));
                     }}
                   >
-                    {isAnalyzing ? 'Analyzing...' : '🔍 AI Deep Analysis'}
+                    {isAnalyzing ? '分析中...' : '🔍 AI深度分析'}
                   </button>
                 )}
               </div>
@@ -457,28 +469,28 @@ function ForecastSection({
       {/* Similar historical periods */}
       {stats.count > 0 && (
         <div className="fc-similar-section">
-          <div className="fc-section-title">Similar Historical Periods ({stats.count})</div>
+          <div className="fc-section-title">相似历史区间 ({stats.count})</div>
           <div className="fc-similar-stats">
             <div className="fc-stat">
-              <span className="fc-stat-label">5D Up Rate</span>
+              <span className="fc-stat-label">5日上涨率</span>
               <span className={`fc-stat-value ${stats.up_ratio_5d > 0.5 ? 'up' : 'down'}`}>
                 {(stats.up_ratio_5d * 100).toFixed(0)}%
               </span>
             </div>
             <div className="fc-stat">
-              <span className="fc-stat-label">Avg 5D Ret</span>
+              <span className="fc-stat-label">5日均收益</span>
               <span className={`fc-stat-value ${(stats.avg_ret_5d ?? 0) >= 0 ? 'up' : 'down'}`}>
                 {stats.avg_ret_5d != null ? `${stats.avg_ret_5d >= 0 ? '+' : ''}${stats.avg_ret_5d.toFixed(1)}%` : '-'}
               </span>
             </div>
             <div className="fc-stat">
-              <span className="fc-stat-label">10D Up Rate</span>
+              <span className="fc-stat-label">10日上涨率</span>
               <span className={`fc-stat-value ${stats.up_ratio_10d > 0.5 ? 'up' : 'down'}`}>
                 {(stats.up_ratio_10d * 100).toFixed(0)}%
               </span>
             </div>
             <div className="fc-stat">
-              <span className="fc-stat-label">Avg 10D Ret</span>
+              <span className="fc-stat-label">10日均收益</span>
               <span className={`fc-stat-value ${(stats.avg_ret_10d ?? 0) >= 0 ? 'up' : 'down'}`}>
                 {stats.avg_ret_10d != null ? `${stats.avg_ret_10d >= 0 ? '+' : ''}${stats.avg_ret_10d.toFixed(1)}%` : '-'}
               </span>
@@ -493,8 +505,8 @@ function ForecastSection({
                   <span className="fc-period-sim">{(p.similarity * 100).toFixed(0)}% match</span>
                 </div>
                 <div className="fc-period-detail">
-                  <span>{p.n_articles} articles</span>
-                  <span>Sentiment: {p.avg_sentiment >= 0 ? '+' : ''}{p.avg_sentiment.toFixed(2)}</span>
+                  <span>{p.n_articles}篇新闻</span>
+                  <span>情绪: {p.avg_sentiment >= 0 ? '+' : ''}{p.avg_sentiment.toFixed(2)}</span>
                   {p.ret_after_5d != null && (
                     <span className={p.ret_after_5d >= 0 ? 'up' : 'down'}>
                       5D: {p.ret_after_5d >= 0 ? '+' : ''}{p.ret_after_5d.toFixed(1)}%
@@ -529,13 +541,13 @@ function PredictionCard({ label, pred }: { label: string; pred: HorizonPredictio
         <span className="fc-pred-label">{label}</span>
         {/* model_type hidden — show generic "AI" label */}
         <span className={`fc-pred-dir ${isUp ? 'up' : 'down'}`}>
-          {isUp ? '\u2191' : '\u2193'} {pred.direction.toUpperCase()}
+          {isUp ? '\u2191' : '\u2193'} {isUp ? '上涨' : '下跌'}
         </span>
         <span className="fc-pred-conf">{(pred.confidence * 100).toFixed(0)}%</span>
       </div>
       {hasAccuracy && (
         <div className="fc-pred-meta">
-          Acc {(pred.model_accuracy! * 100).toFixed(1)}% / Base {(pred.baseline_accuracy! * 100).toFixed(1)}% / Lift {lift >= 0 ? '+' : ''}{(lift * 100).toFixed(1)}pp
+          准确率 {(pred.model_accuracy! * 100).toFixed(1)}% / 基准 {(pred.baseline_accuracy! * 100).toFixed(1)}% / 提升 {lift >= 0 ? '+' : ''}{(lift * 100).toFixed(1)}pp
         </div>
       )}
       {pred.top_drivers.length > 0 && (
