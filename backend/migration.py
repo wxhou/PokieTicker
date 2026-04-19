@@ -194,6 +194,45 @@ def _int(val):
         return None
 
 
+def migrate_auth_tables(conn):
+    """Add user auth tables (users, portfolios, portfolio_holdings).
+
+    Uses CREATE TABLE IF NOT EXISTS so this is safe to re-run.
+    """
+    print("Adding auth tables...")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            email           TEXT UNIQUE NOT NULL,
+            password_hash   TEXT NOT NULL,
+            created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS portfolios (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id    INTEGER NOT NULL,
+            name       TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS portfolio_holdings (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            portfolio_id INTEGER NOT NULL,
+            stock_code   TEXT NOT NULL,
+            added_at     TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE,
+            UNIQUE(portfolio_id, stock_code)
+        )
+    """)
+    conn.commit()
+    print("  Auth tables ready")
+
+
 def run_migration():
     print("=== Stock News Migration ===")
     init_db()
@@ -203,6 +242,7 @@ def run_migration():
         migrate_ohlc(conn)
         migrate_news(conn)
         migrate_parsed_output(conn)
+        migrate_auth_tables(conn)
     finally:
         conn.close()
     print("=== Migration complete ===")

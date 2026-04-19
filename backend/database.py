@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS ohlc (
     volume        REAL,
     vwap          REAL,
     transactions  INTEGER,
+    pct_chg       REAL DEFAULT 0,
     PRIMARY KEY (symbol, date)
 );
 
@@ -84,6 +85,8 @@ CREATE TABLE IF NOT EXISTS news_aligned (
     ret_t3        REAL,
     ret_t5        REAL,
     ret_t10       REAL,
+    limit_up      INTEGER DEFAULT 0,
+    limit_down    INTEGER DEFAULT 0,
     PRIMARY KEY (news_id, symbol)
 );
 CREATE INDEX IF NOT EXISTS idx_news_aligned_symbol_date ON news_aligned(symbol, trade_date);
@@ -104,6 +107,24 @@ CREATE TABLE IF NOT EXISTS batch_request_map (
     symbol        TEXT NOT NULL,
     article_ids   TEXT NOT NULL,
     PRIMARY KEY (batch_id, custom_id)
+);
+
+CREATE TABLE IF NOT EXISTS ohlc_cache (
+    key_col       TEXT PRIMARY KEY,
+    data_json     TEXT,
+    fetched_at    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS news_cache (
+    key_col       TEXT PRIMARY KEY,
+    data_json     TEXT,
+    fetched_at    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS limit_cache (
+    key_col       TEXT PRIMARY KEY,
+    data_json     TEXT,
+    fetched_at    TEXT
 );
 """
 
