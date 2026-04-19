@@ -15,18 +15,17 @@ interface Props {
 }
 
 const GROUPS: Record<string, string[]> = {
-  'Tech': ['AAPL', 'MSFT', 'GOOGL', 'GOOG', 'META', 'AMZN', 'CRM', 'ORCL', 'IBM', 'CSCO', 'NOW', 'WDAY', 'SNOW', 'DELL', 'ADBE'],
-  'AI / Chip': ['NVDA', 'AMD', 'TSM', 'AVGO', 'INTC', 'QCOM', 'ARM', 'AMAT', 'LRCX', 'MU', 'MRVL', 'SMCI', 'CRWV', 'TXN', 'ASML'],
-  'AI Software': ['AI', 'SOUN', 'SOUNW', 'CRWD', 'ANET', 'IDCC'],
-  'EV / Auto': ['TSLA', 'RIVN', 'LCID', 'NIO', 'LI', 'BYDDY', 'F', 'GM', 'STLA', 'TM'],
-  'China': ['BABA', 'JD', 'BIDU', 'NIO', 'LI', 'BILI', 'NTES', 'SE', 'MCHI', 'FXI'],
-  'Finance': ['V', 'MA', 'GS', 'MS', 'BAC', 'WFC', 'C', 'BLK', 'COIN', 'HOOD', 'MARA'],
-  'Media': ['NFLX', 'DIS', 'ROKU', 'WBD', 'ZM'],
-  'Consumer': ['COST', 'WMT', 'HD', 'TGT', 'NKE', 'SBUX', 'MCD', 'CMG', 'KO', 'EBAY', 'MELI'],
-  'Health': ['UNH', 'JNJ', 'LLY', 'MRNA', 'NVO'],
-  'Energy': ['XOM', 'CVX', 'OXY', 'XLE', 'USO'],
-  'Telecom': ['T', 'VZ'],
-  'Other': ['BA', 'UBER', 'GME', 'AMC', 'MULN', 'SQ', 'FB', 'AMJB', 'GLD', 'XLU', 'XLY', 'DIDI'],
+  '科技': ['002415', '000063', '002371', '688981', '688256', '688396', '002049', '300223', '688521'],
+  '新能源': ['300750', '002594', '300014', '688005', '002812', '600438', '300274', '600905'],
+  '白酒': ['600519', '000858', '000568', '600809', '002304', '600702', '000596', '603369'],
+  '医药': ['600276', '000538', '300760', '300122', '688180', '603259', '300015', '002007'],
+  '消费': ['000568', '600887', '002304', '000333', '603288', '600600', '002557', '000895'],
+  '半导体': ['688981', '688256', '688396', '002371', '002049', '688521', '688008', '688012'],
+  '金融': ['600036', '601318', '600016', '601166', '600000', '000001', '601398', '601288'],
+  '地产': ['000002', '600048', '001979', '600606', '600383', '601155', '000671', '600823'],
+  '军工': ['002025', '600893', '600760', '002013', '600316', '600862', '688185', '000738'],
+  'AI': ['300024', '603019', '002410', '300229', '688041', '300678', '688787', '300308'],
+  '其他': [],
 };
 
 export default function StockSelector({ activeTickers, selectedSymbol, onSelect, onAdd }: Props) {
@@ -97,11 +96,11 @@ export default function StockSelector({ activeTickers, selectedSymbol, onSelect,
   const assigned = new Set(renderedGroups.flatMap((g) => g.symbols));
   const ungrouped = activeTickers.filter((s) => !assigned.has(s)).sort();
   if (ungrouped.length > 0) {
-    const otherGroup = renderedGroups.find((g) => g.label === 'Other');
+    const otherGroup = renderedGroups.find((g) => g.label === '其他');
     if (otherGroup) {
       otherGroup.symbols.push(...ungrouped);
     } else {
-      renderedGroups.push({ label: 'Other', symbols: ungrouped });
+      renderedGroups.push({ label: '其他', symbols: ungrouped });
     }
   }
 
@@ -143,7 +142,7 @@ export default function StockSelector({ activeTickers, selectedSymbol, onSelect,
       <div className="search-wrapper" ref={searchRef}>
         <input
           type="text"
-          placeholder="Search..."
+          placeholder="搜索股票..."
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
           onFocus={() => results.length > 0 && setShowSearch(true)}

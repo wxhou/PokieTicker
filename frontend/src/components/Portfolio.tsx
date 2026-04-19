@@ -1,0 +1,255 @@
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+
+interface Holding {
+  id: number;
+  stock_code: string;
+  added_at: string;
+  close?: number;
+  pct_chg?: number;
+}
+
+interface Portfolio {
+  id: number;
+  name: string;
+  created_at: string;
+  holdings: Holding[];
+}
+
+interface Props {
+  onBack: () => void;
+}
+
+export default function Portfolio({ onBack }: Props) {
+  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [showLogin, setShowLogin] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [addCode, setAddCode] = useState<Record<number, string>>({});
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem('zx_auth_token');
+    if (savedToken) {
+      setToken(savedToken);
+      loadPortfolios(savedToken);
+    } else {
+      setShowLogin(true);
+      setLoading(false);
+    }
+  }, []);
+
+  async function loadPortfolios(t: string) {
+    setLoading(true);
+    try {
+      const res = await axios.get('/api/portfolio', {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      setPortfolios(res.data);
+    } catch (e: any) {
+      if (e.response?.status === 401) {
+        localStorage.removeItem('zx_auth_token');
+        setToken(null);
+        setShowLogin(true);
+      } else {
+        setError('加载失败');
+      }
+    }
+    setLoading(false);
+  }
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthError('');
+    try {
+      const res = await axios.post('/api/auth/login', { email, password });
+      const t = res.data.access_token;
+      localStorage.setItem('zx_auth_token', t);
+      setToken(t);
+      setShowLogin(false);
+      loadPortfolios(t);
+    } catch (e: any) {
+      setAuthError(e.response?.data?.detail || '登录失败');
+    }
+  }
+
+  async function handleRegister(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthError('');
+    try {
+      await axios.post('/api/auth/register', { email, password });
+      await handleLogin(e);
+    } catch (e: any) {
+      setAuthError(e.response?.data?.detail || '注册失败');
+    }
+  }
+
+  async function handleLogout() {
+    localStorage.removeItem('zx_auth_token');
+    setToken(null);
+    setPortfolios([]);
+    setShowLogin(true);
+  }
+
+  async function createPortfolio() {
+    if (!newName.trim() || !token) return;
+    try {
+      const res = await axios.post('/api/portfolio', { name: newName.trim() }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPortfolios([res.data, ...portfolios]);
+      setNewName('');
+    } catch (e: any) {
+      setError(e.response?.data?.detail || '创建失败');
+    }
+  }
+
+  async function deletePortfolio(id: number) {
+    if (!token) return;
+    try {
+      await axios.delete(`/api/portfolio/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPortfolios(portfolios.filter(p => p.id !== id));
+    } catch (e: any) {
+      setError(e.response?.data?.detail || '删除失败');
+    }
+  }
+
+  async function addHolding(portfolioId: number) {
+    const code = addCode[portfolioId]?.trim().toUpperCase();
+    if (!code || !token) return;
+    try {
+      await axios.post('/api/portfolio/holdings', { portfolio_id: portfolioId, stock_code: code }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      // Reload portfolios
+      loadPortfolios(token);
+      setAddCode(prev => ({ ...prev, [portfolioId]: '' }));
+    } catch (e: any) {
+      setError(e.response?.data?.detail || '添加失败');
+    }
+  }
+
+  async function removeHolding(holdingId: number) {
+    if (!token) return;
+    try {
+      await axios.delete(`/api/portfolio/holdings/${holdingId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPortfolios(portfolios.map(p => ({
+        ...p,
+        holdings: p.holdings.filter(h => h.id !== holdingId),
+      })));
+    } catch (e: any) {
+      setError(e.response?.data?.detail || '移除失败');
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="portfolio-loading">
+        <div className="range-spinner" />
+        <span>加载中...</span>
+      </div>
+    );
+  }
+
+  if (showLogin || !token) {
+    return (
+      <div className="portfolio-auth">
+        <div className="portfolio-auth-card">
+          <h2>登录涨讯</h2>
+          <p className="portfolio-auth-sub">管理您的持仓组合</p>
+          {authError && <div className="auth-error">{authError}</div>}
+          <form onSubmit={handleLogin}>
+            <div className="form-group">
+              <label>邮箱</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" required />
+            </div>
+            <div className="form-group">
+              <label>密码</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
+            </div>
+            <div className="auth-actions">
+              <button type="submit" className="btn-primary">登录</button>
+              <button type="button" className="btn-secondary" onClick={handleRegister}>注册</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="portfolio-page">
+      <div className="portfolio-header">
+        <h2>我的持仓</h2>
+        <button className="btn-ghost" onClick={onBack}>返回分析</button>
+        <button className="btn-ghost btn-danger" onClick={handleLogout}>退出登录</button>
+      </div>
+
+      {error && <div className="portfolio-error">{error}</div>}
+
+      <div className="portfolio-create">
+        <input
+          type="text"
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          placeholder="新建组合名称（如：科技股组合）"
+          onKeyDown={e => e.key === 'Enter' && createPortfolio()}
+        />
+        <button className="btn-primary" onClick={createPortfolio}>创建</button>
+      </div>
+
+      {portfolios.length === 0 ? (
+        <div className="portfolio-empty">
+          <p>暂无持仓组合</p>
+          <p className="portfolio-empty-hint">创建组合后，可添加股票代码（最多10只）</p>
+        </div>
+      ) : (
+        <div className="portfolio-list">
+          {portfolios.map(p => (
+            <div key={p.id} className="portfolio-card">
+              <div className="portfolio-card-header">
+                <h3>{p.name}</h3>
+                <span className="portfolio-card-meta">{p.holdings.length}/10只</span>
+                <button className="btn-icon danger" onClick={() => deletePortfolio(p.id)} title="删除组合">✕</button>
+              </div>
+              <div className="portfolio-holdings">
+                {p.holdings.map(h => (
+                  <div key={h.id} className="holding-item">
+                    <span className="holding-code">{h.stock_code}</span>
+                    {h.close != null && (
+                      <span className={`holding-change ${(h.pct_chg || 0) >= 0 ? 'up' : 'down'}`}>
+                        {h.close.toFixed(2)}
+                        {(h.pct_chg || 0) >= 0 ? '+' : ''}{((h.pct_chg || 0)).toFixed(2)}%
+                      </span>
+                    )}
+                    <button className="btn-icon" onClick={() => removeHolding(h.id)} title="移除">✕</button>
+                  </div>
+                ))}
+              </div>
+              {p.holdings.length < 10 && (
+                <div className="portfolio-add-holding">
+                  <input
+                    type="text"
+                    value={addCode[p.id] || ''}
+                    onChange={e => setAddCode(prev => ({ ...prev, [p.id]: e.target.value }))}
+                    placeholder="输入股票代码（如600519）"
+                    onKeyDown={e => e.key === 'Enter' && addHolding(p.id)}
+                  />
+                  <button className="btn-add" onClick={() => addHolding(p.id)}>+</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

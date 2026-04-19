@@ -44,7 +44,8 @@ function sortBySentiment(items: NewsItem[]): NewsItem[] {
 function pct(v: number | null) {
   if (v === null || v === undefined) return '-';
   const pctVal = v * 100;
-  const color = pctVal > 0 ? '#26a69a' : pctVal < 0 ? '#ef5350' : '#888';
+  // A-share: up=red, down=green
+  const color = pctVal > 0 ? '#ff5252' : pctVal < 0 ? '#00e676' : '#888';
   return <span style={{ color, fontWeight: 600 }}>{pctVal > 0 ? '+' : ''}{pctVal.toFixed(2)}%</span>;
 }
 
@@ -114,9 +115,9 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
     return (
       <div className="news-panel">
         <div className="news-panel-header">
-          <h2>News</h2>
+          <h2>新闻</h2>
         </div>
-        <div className="news-empty">Tap on a chart dot to see news</div>
+        <div className="news-empty">点击K线图上的点查看新闻</div>
       </div>
     );
   }
@@ -124,20 +125,20 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
   return (
     <div className="news-panel">
       <div className="news-panel-header">
-        <h2>News</h2>
+        <h2>新闻</h2>
         <span className="news-date-badge">{displayDate}</span>
-        <span className="news-count">{news.length} articles</span>
+        <span className="news-count">{news.length}条新闻</span>
         {isLocked && (
-          <button className="lock-badge" onClick={onUnlock} title="Click to unlock">
-            Locked
+          <button className="lock-badge" onClick={onUnlock} title="点击解锁">
+            已锁定
           </button>
         )}
       </div>
 
       {loading && news.length === 0 ? (
-        <div className="news-empty">Loading...</div>
+        <div className="news-empty">加载中...</div>
       ) : news.length === 0 ? (
-        <div className="news-empty">No news for this date</div>
+        <div className="news-empty">该日期暂无新闻</div>
       ) : (
         <div className="news-list" ref={listRef}>
           {news.map((item) => {
@@ -196,7 +197,7 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
                         className="find-similar-btn"
                         onClick={(e) => { e.stopPropagation(); onFindSimilar(item.news_id); }}
                       >
-                        Find Similar
+                        相似新闻
                       </button>
                     )}
                   </div>

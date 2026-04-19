@@ -234,6 +234,11 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       close: +d.close,
       volume: +d.volume,
       change: i > 0 ? ((+d.close - +rawData[i - 1].close) / +rawData[i - 1].close) * 100 : 0,
+      // A-share limit-up/down: regular stocks ±10%, ST stocks ±5%
+      limitUp: i > 0 ? +rawData[i - 1].close * 1.095 : null,
+      limitDown: i > 0 ? +rawData[i - 1].close * 0.905 : null,
+      isLimitUp: i > 0 ? +d.high >= +rawData[i - 1].close * 1.095 : false,
+      isLimitDown: i > 0 ? +d.low <= +rawData[i - 1].close * 0.905 : false,
     }));
 
     // Build a lookup: dateStr → OHLC row
@@ -275,7 +280,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
 
     // Y Axis
     g.append('g')
-      .call(d3.axisLeft(y).ticks(6).tickFormat((d) => `$${Number(d).toFixed(0)}`))
+      .call(d3.axisLeft(y).ticks(6).tickFormat((d) => `¥${Number(d).toFixed(0)}`))
       .selectAll('text')
       .style('font-size', '12px')
       .style('fill', '#555');
@@ -303,7 +308,29 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       .attr('y', (d) => y(Math.max(d.open, d.close)))
       .attr('width', candleWidth)
       .attr('height', (d) => Math.max(1, Math.abs(y(d.open) - y(d.close))))
-      .attr('fill', (d) => (d.close >= d.open ? '#00e676' : '#ff5252'));
+      .attr('fill', (d) => (d.close >= d.open ? '#00e676' : '#ff5252'))
+      .attr('stroke', (d) => d.isLimitUp || d.isLimitDown ? '#ffd700' : 'none')
+      .attr('stroke-width', 2);
+
+    // Limit-up triangle marker (▲) at top of candle
+    candles.filter((d) => d.isLimitUp)
+      .append('text')
+      .attr('x', (d) => x(d.date))
+      .attr('y', (d) => y(d.high) - 6)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '11px')
+      .attr('fill', '#ff5252')
+      .text('▲');
+
+    // Limit-down triangle marker (▼) at bottom of candle
+    candles.filter((d) => d.isLimitDown)
+      .append('text')
+      .attr('x', (d) => x(d.date))
+      .attr('y', (d) => y(d.low) + 14)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '11px')
+      .attr('fill', '#00e676')
+      .text('▼');
 
     // --- Place particles overlaid on K-line ---
     // Group particles by trade_date
@@ -535,7 +562,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
           .attr('transform', `translate(${-46},${my - 9})`);
         priceLabel.select('text')
           .attr('x', 23)
-          .text(`$${priceAtY.toFixed(2)}`);
+          .text(`¥${priceAtY.toFixed(2)}`);
 
         // Date label
         dateLabel.style('display', null)
@@ -570,7 +597,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
               tooltip.innerHTML = `
                 <div class="pt-title">${hit.t}</div>
                 <div class="pt-meta">
-                  <span class="pt-sentiment" style="color:${hit.color}">${hit.s || 'unknown'}</span>
+                  <span class="pt-sentiment" style="color:${hit.color}">${hit.s || '未知'}</span>
                   <span class="pt-ret" style="color:${retColor}">T+1: ${retStr}</span>
                 </div>
               `;
@@ -605,7 +632,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
 
   return (
     <div ref={containerRef} className="chart-container">
-      {loading && <div className="chart-loading">Loading...</div>}
+      {loading && <div className="chart-loading">加载中...</div>}
       <svg ref={svgRef}></svg>
       <canvas
         ref={canvasRef}

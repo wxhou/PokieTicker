@@ -61,7 +61,7 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
       })
       .catch((err) => {
         if (!axios.isCancel(err)) {
-          setError('Analysis failed');
+          setError('分析失败');
         }
       })
       .finally(() => setLoading(false));
@@ -75,14 +75,14 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
   return (
     <div className="news-panel range-panel">
       <div className="news-panel-header">
-        <h2>Range Analysis</h2>
-        <button className="range-clear-btn" onClick={onClear}>Clear</button>
+        <h2>区间分析</h2>
+        <button className="range-clear-btn" onClick={onClear}>关闭</button>
       </div>
 
       {loading ? (
         <div className="news-list" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32 }}>
           <div className="range-spinner" />
-          <span style={{ color: '#aab', fontSize: 15 }}>AI Analyzing {startDate} to {endDate}...</span>
+          <span style={{ color: '#aab', fontSize: 15 }}>AI 分析中 {startDate} ~ {endDate}...</span>
           <div className="ai-loading-skeleton">
             <div className="skeleton-line" style={{ width: '90%' }} />
             <div className="skeleton-line" style={{ width: '75%' }} />
@@ -104,15 +104,15 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
 
           {/* Price summary card */}
           <div className="range-price-card">
-            <div className="range-dates">{data.start_date} to {data.end_date}</div>
+            <div className="range-dates">{data.start_date} ~ {data.end_date}</div>
             <div className="range-price-row">
-              <span className="range-price">${data.open_price.toFixed(2)} → ${data.close_price.toFixed(2)}</span>
+              <span className="range-price">¥{data.open_price.toFixed(2)} → ¥{data.close_price.toFixed(2)}</span>
               <span className={`range-change ${isUp ? 'up' : 'down'}`}>
                 {isUp ? '+' : ''}{changePct.toFixed(2)}%
               </span>
             </div>
             <div className="range-meta">
-              {data.trading_days} trading days · {data.news_count} news articles
+              {data.trading_days}个交易日 · {data.news_count}条新闻
             </div>
           </div>
 
@@ -126,7 +126,7 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
           {/* Key events */}
           {data.analysis.key_events?.length > 0 && (
             <div className="range-section">
-              <h3 className="range-section-title">Key Events</h3>
+              <h3 className="range-section-title">关键事件</h3>
               <ul className="range-events">
                 {data.analysis.key_events.map((evt, i) => (
                   <li key={i}>{evt}</li>
@@ -138,7 +138,7 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
           {/* Bullish factors */}
           {data.analysis.bullish_factors?.length > 0 && (
             <div className="range-section">
-              <h3 className="range-section-title">Bullish Factors</h3>
+              <h3 className="range-section-title">看多因素</h3>
               {data.analysis.bullish_factors.map((f, i) => (
                 <div key={i} className="reason up">
                   <span className="reason-icon">+</span> {f}
@@ -150,7 +150,7 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
           {/* Bearish factors */}
           {data.analysis.bearish_factors?.length > 0 && (
             <div className="range-section">
-              <h3 className="range-section-title">Bearish Factors</h3>
+              <h3 className="range-section-title">看空因素</h3>
               {data.analysis.bearish_factors.map((f, i) => (
                 <div key={i} className="reason down">
                   <span className="reason-icon">-</span> {f}
@@ -162,7 +162,7 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
           {/* Trend analysis */}
           {data.analysis.trend_analysis && (
             <div className="range-section">
-              <h3 className="range-section-title">Trend Analysis</h3>
+              <h3 className="range-section-title">趋势分析</h3>
               <p className="range-trend">{data.analysis.trend_analysis}</p>
             </div>
           )}
