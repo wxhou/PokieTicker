@@ -248,5 +248,47 @@ def run_migration():
     print("=== Migration complete ===")
 
 
+def run_minimax_migration():
+    """Add MiniMax-specific columns and tables for realtime news search."""
+    print("=== MiniMax Migration ===")
+    conn = get_conn()
+
+    # Add simhash to news_raw
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(news_raw)").fetchall()]
+    if "simhash" not in cols:
+        conn.execute("ALTER TABLE news_raw ADD COLUMN simhash TEXT")
+        print("  + simhash column on news_raw")
+
+    # Create simhash index
+    try:
+        conn.execute("CREATE INDEX idx_news_simhash ON news_raw(simhash)")
+        print("  + idx_news_simhash index")
+    except Exception:
+        pass  # index may already exist
+
+    # Add source to news_aligned
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(news_aligned)").fetchall()]
+    if "source" not in cols:
+        conn.execute("ALTER TABLE news_aligned ADD COLUMN source TEXT")
+        print("  + source column on news_aligned")
+
+    # Add source to portfolio_holdings
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(portfolio_holdings)").fetchall()]
+    if "source" not in cols:
+        conn.execute("ALTER TABLE portfolio_holdings ADD COLUMN source TEXT DEFAULT 'manual'")
+        print("  + source column on portfolio_holdings")
+
+    # Create news_sources table
+    conn.execute("""CREATE TABLE IF NOT EXISTS news_sources (
+        source TEXT PRIMARY KEY,
+        last_sync TEXT
+    )""")
+    print("  + news_sources table")
+
+    conn.commit()
+    conn.close()
+    print("=== MiniMax Migration complete ===")
+
+
 if __name__ == "__main__":
     run_migration()

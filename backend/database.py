@@ -34,7 +34,9 @@ CREATE TABLE IF NOT EXISTS news_raw (
     article_url   TEXT,
     amp_url       TEXT,
     tickers_json  TEXT,
-    insights_json TEXT
+    insights_json TEXT,
+    image_url     TEXT,
+    simhash       TEXT
 );
 
 CREATE TABLE IF NOT EXISTS news_ticker (
@@ -87,9 +89,11 @@ CREATE TABLE IF NOT EXISTS news_aligned (
     ret_t10       REAL,
     limit_up      INTEGER DEFAULT 0,
     limit_down    INTEGER DEFAULT 0,
+    source        TEXT,
     PRIMARY KEY (news_id, symbol)
 );
 CREATE INDEX IF NOT EXISTS idx_news_aligned_symbol_date ON news_aligned(symbol, trade_date);
+CREATE INDEX IF NOT EXISTS idx_news_simhash ON news_raw(simhash);
 
 CREATE TABLE IF NOT EXISTS batch_jobs (
     batch_id      TEXT PRIMARY KEY,
@@ -107,6 +111,21 @@ CREATE TABLE IF NOT EXISTS batch_request_map (
     symbol        TEXT NOT NULL,
     article_ids   TEXT NOT NULL,
     PRIMARY KEY (batch_id, custom_id)
+);
+
+CREATE TABLE IF NOT EXISTS news_sources (
+    source      TEXT PRIMARY KEY,
+    last_sync   TEXT
+);
+
+CREATE TABLE IF NOT EXISTS portfolio_holdings (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    portfolio_id INTEGER NOT NULL,
+    stock_code   TEXT NOT NULL,
+    added_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    source       TEXT NOT NULL DEFAULT 'manual',
+    FOREIGN KEY (portfolio_id) REFERENCES portfolios(id) ON DELETE CASCADE,
+    UNIQUE(portfolio_id, stock_code)
 );
 
 CREATE TABLE IF NOT EXISTS ohlc_cache (
