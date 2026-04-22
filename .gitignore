@@ -52,3 +52,6 @@ logs/
 
 # OS
 Thumbs.db
+
+# OpenSpec change management
+openspec/
