@@ -21,13 +21,13 @@ interface Props {
   onCategoryChange: (category: string | null, articleIds: string[], color?: string) => void;
 }
 
-const CATEGORY_META: Record<string, { icon: string; zh: string; color: string }> = {
-  market:       { icon: '📈', zh: '市场影响',   color: '#c9a96e' },
-  policy:       { icon: '🏛️', zh: '政策影响',   color: '#b08040' },
-  earnings:     { icon: '💰', zh: '业绩公告',    color: '#e63946' },
-  product_tech: { icon: '🚀', zh: '产品技术',    color: '#a07cdc' },
-  competition:  { icon: '⚔️',  zh: '竞争动态',   color: '#d97706' },
-  management:   { icon: '👤', zh: '管理层变动',  color: '#2d936c' },
+const CATEGORY_META: Record<string, { zh: string; color: string }> = {
+  market:       { zh: '市场',   color: '#c9a96e' },
+  policy:       { zh: '政策',   color: '#b08040' },
+  earnings:     { zh: '业绩',    color: '#e63946' },
+  product_tech: { zh: '产品',    color: '#a07cdc' },
+  competition:  { zh: '竞争',   color: '#d97706' },
+  management:   { zh: '人事',  color: '#2d936c' },
 };
 
 type SentimentFilter = 'all' | 'positive' | 'negative';
@@ -44,7 +44,6 @@ export default function NewsCategoryPanel({ symbol, activeCategory, onCategoryCh
       .catch(() => setCategories({}));
   }, [symbol]);
 
-  // Reset sentiment sub-filter when category changes
   useEffect(() => {
     setSentimentFilter('all');
   }, [activeCategory]);
@@ -79,7 +78,7 @@ export default function NewsCategoryPanel({ symbol, activeCategory, onCategoryCh
       <div className="news-category-bar">
         {keys.map((key) => {
           const cat = categories[key];
-          const meta = CATEGORY_META[key] || { icon: '📌', zh: key, color: '#c9a96e' };
+          const meta = CATEGORY_META[key] || { zh: key, color: '#c9a96e' };
           const isActive = activeCategory === key;
           return (
             <button
@@ -87,8 +86,6 @@ export default function NewsCategoryPanel({ symbol, activeCategory, onCategoryCh
               className={`category-tag ${isActive ? 'category-tag-active' : ''}`}
               style={{
                 '--tag-color': meta.color,
-                '--tag-color-bg': `${meta.color}18`,
-                '--tag-color-bg-active': `${meta.color}30`,
               } as React.CSSProperties}
               onClick={() => {
                 if (isActive) {
@@ -99,36 +96,33 @@ export default function NewsCategoryPanel({ symbol, activeCategory, onCategoryCh
                 }
               }}
             >
-              <span className="category-tag-icon">{meta.icon}</span>
-              <div className="category-tag-body">
-                <span className="category-tag-label">{meta.zh}</span>
-                <span className="category-tag-count">{cat.count} 条</span>
-              </div>
+              <span className="category-tag-dot" style={{ background: meta.color }} />
+              <span className="category-tag-label">{meta.zh}</span>
+              <span className="category-tag-count">{cat.count}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Sentiment sub-filter row — only shown when a category is active */}
       {activeCat && (
         <div className="sentiment-sub-bar">
           <button
             className={`sentiment-sub-btn ${sentimentFilter === 'all' ? 'sentiment-sub-active' : ''}`}
             onClick={() => handleSentimentClick('all')}
           >
-            {'全部'} <span className="sentiment-sub-count">{activeCat.count}</span>
+            全部 <span className="sentiment-sub-count">{activeCat.count}</span>
           </button>
           <button
             className={`sentiment-sub-btn sentiment-sub-up ${sentimentFilter === 'positive' ? 'sentiment-sub-active' : ''}`}
             onClick={() => handleSentimentClick('positive')}
           >
-            {'▲ 利好'} <span className="sentiment-sub-count">{activeCat.positive_ids.length}</span>
+            利好 <span className="sentiment-sub-count">{activeCat.positive_ids.length}</span>
           </button>
           <button
             className={`sentiment-sub-btn sentiment-sub-down ${sentimentFilter === 'negative' ? 'sentiment-sub-active' : ''}`}
             onClick={() => handleSentimentClick('negative')}
           >
-            {'▼ 利空'} <span className="sentiment-sub-count">{activeCat.negative_ids.length}</span>
+            利空 <span className="sentiment-sub-count">{activeCat.negative_ids.length}</span>
           </button>
         </div>
       )}
