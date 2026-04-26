@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import ScreenshotImport from './ScreenshotImport';
 
 interface Holding {
   id: number;
   stock_code: string;
   added_at: string;
+  source?: string;
   close?: number;
   pct_chg?: number;
 }
@@ -14,6 +16,13 @@ interface Portfolio {
   name: string;
   created_at: string;
   holdings: Holding[];
+}
+
+function extractError(e: any, fallback: string): string {
+  const d = e.response?.data;
+  if (Array.isArray(d) && d.length > 0) return d[0].msg || fallback;
+  if (typeof d?.detail === 'string') return d.detail;
+  return fallback;
 }
 
 interface Props {
@@ -31,6 +40,7 @@ export default function Portfolio({ onBack }: Props) {
   const [newName, setNewName] = useState('');
   const [addCode, setAddCode] = useState<Record<number, string>>({});
   const [error, setError] = useState('');
+  const [showScreenshot, setShowScreenshot] = useState(false);
 
   useEffect(() => {
     const savedToken = localStorage.getItem('zx_auth_token');
@@ -73,7 +83,7 @@ export default function Portfolio({ onBack }: Props) {
       setShowLogin(false);
       loadPortfolios(t);
     } catch (e: any) {
-      setAuthError(e.response?.data?.detail || '登录失败');
+      setAuthError(extractError(e, '登录失败'));
     }
   }
 
@@ -84,7 +94,7 @@ export default function Portfolio({ onBack }: Props) {
       await axios.post('/api/auth/register', { email, password });
       await handleLogin(e);
     } catch (e: any) {
-      setAuthError(e.response?.data?.detail || '注册失败');
+      setAuthError(extractError(e, '注册失败'));
     }
   }
 
@@ -104,7 +114,7 @@ export default function Portfolio({ onBack }: Props) {
       setPortfolios([res.data, ...portfolios]);
       setNewName('');
     } catch (e: any) {
-      setError(e.response?.data?.detail || '创建失败');
+      setError(extractError(e, '创建失败'));
     }
   }
 
@@ -116,7 +126,7 @@ export default function Portfolio({ onBack }: Props) {
       });
       setPortfolios(portfolios.filter(p => p.id !== id));
     } catch (e: any) {
-      setError(e.response?.data?.detail || '删除失败');
+      setError(extractError(e, '删除失败'));
     }
   }
 
@@ -131,7 +141,7 @@ export default function Portfolio({ onBack }: Props) {
       loadPortfolios(token);
       setAddCode(prev => ({ ...prev, [portfolioId]: '' }));
     } catch (e: any) {
-      setError(e.response?.data?.detail || '添加失败');
+      setError(extractError(e, '添加失败'));
     }
   }
 
@@ -146,7 +156,7 @@ export default function Portfolio({ onBack }: Props) {
         holdings: p.holdings.filter(h => h.id !== holdingId),
       })));
     } catch (e: any) {
-      setError(e.response?.data?.detail || '移除失败');
+      setError(extractError(e, '移除失败'));
     }
   }
 
@@ -189,6 +199,7 @@ export default function Portfolio({ onBack }: Props) {
     <div className="portfolio-page">
       <div className="portfolio-header">
         <h2>我的持仓</h2>
+        <button className="btn-ghost" onClick={() => setShowScreenshot(true)}>截图导入</button>
         <button className="btn-ghost" onClick={onBack}>返回分析</button>
         <button className="btn-ghost btn-danger" onClick={handleLogout}>退出登录</button>
       </div>
@@ -224,6 +235,11 @@ export default function Portfolio({ onBack }: Props) {
                 {p.holdings.map(h => (
                   <div key={h.id} className="holding-item">
                     <span className="holding-code">{h.stock_code}</span>
+                    {h.source && (
+                      <span className={`source-badge ${h.source === 'screenshot' ? 'screenshot' : 'manual'}`}>
+                        {h.source === 'screenshot' ? '截图' : '手动'}
+                      </span>
+                    )}
                     {h.close != null && (
                       <span className={`holding-change ${(h.pct_chg || 0) >= 0 ? 'up' : 'down'}`}>
                         {h.close.toFixed(2)}
@@ -249,6 +265,13 @@ export default function Portfolio({ onBack }: Props) {
             </div>
           ))}
         </div>
+      )}
+      {showScreenshot && token && (
+        <ScreenshotImport
+          token={token}
+          onSuccess={() => loadPortfolios(token)}
+          onClose={() => setShowScreenshot(false)}
+        />
       )}
     </div>
   );

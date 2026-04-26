@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 # Ensure backend is on the path
 sys.path.insert(0, str(__file__).rsplit("/backend/", 1)[0])
 
-from backend.akshare.client import fetch_ohlc, fetch_news, resolve_code
+from backend.akshare.client import fetch_ohlc, fetch_news, fetch_news_bulk, resolve_code
 from backend.database import get_conn, init_db
 from backend.pipeline.alignment import align_news_for_symbol
 
@@ -101,10 +101,10 @@ def seed_stock(stock: dict) -> dict:
         finally:
             conn.close()
 
-        # 2. Fetch and store news
+        # 2. Fetch and store news (bulk: ~500 articles per stock)
         try:
-            logger.info("[%s] Fetching news", code)
-            news_items = fetch_news(code)
+            logger.info("[%s] Fetching bulk news", code)
+            news_items = fetch_news_bulk(code, max_pages=5)
             logger.info("[%s] Got %d news items", code, len(news_items))
 
             conn = get_conn()
@@ -127,7 +127,7 @@ def seed_stock(stock: dict) -> dict:
                     )
                     conn.execute(
                         "INSERT OR IGNORE INTO news_ticker (news_id, symbol) VALUES (?, ?)",
-                        (news_id, code),
+                        (news_id, symbol),
                     )
                 conn.commit()
                 result["news_items"] = len(news_items)
@@ -139,7 +139,7 @@ def seed_stock(stock: dict) -> dict:
             result["news_items"] = 0
             result["status"] = "partial"
 
-        # 3. Align news → trading days
+        # 3. Align news → trading days (use full symbol to match news_ticker)
         try:
             align_result = align_news_for_symbol(symbol)
             logger.info(
