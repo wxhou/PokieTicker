@@ -133,7 +133,7 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
           padding: 16px;
         }
         .si-modal {
-          background: #1a1a24;
+          background: var(--bg-surface, #191714);
           border: 1px solid #2a2a3a;
           border-radius: 12px;
           width: 100%; max-width: 448px;
@@ -154,16 +154,16 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
         }
         .si-close {
           width: 28px; height: 28px;
-          background: transparent; border: 1px solid #3a3a4a;
-          border-radius: 6px; color: #888; font-size: 16px;
+          background: transparent; border: 1px solid var(--border, #3a3630);
+          border-radius: 6px; color: var(--text-secondary, #8a8478); font-size: 16px;
           cursor: pointer; display: flex; align-items: center; justify-content: center;
           transition: all 0.15s;
         }
-        .si-close:hover { border-color: #667eea; color: #667eea; }
+        .si-close:hover { border-color: var(--accent-gold, #c9a96e); color: var(--accent-gold, #c9a96e); }
 
         /* Drop zone */
         .si-drop {
-          border: 1.5px dashed #3a3a4a;
+          border: 1.5px dashed var(--border, #3a3630);
           border-radius: 10px;
           padding: 28px 16px;
           text-align: center;
@@ -172,13 +172,13 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
           animation: siPulse 3s ease-in-out infinite;
         }
         .si-drop:hover, .si-drop.drag-over {
-          border-color: #667eea;
+          border-color: var(--accent-gold, #c9a96e);
           background: rgba(102, 126, 234, 0.05);
           animation-play-state: paused;
         }
         @keyframes siPulse {
-          0%, 100% { border-color: #3a3a4a; }
-          50% { border-color: #5a6fd6; }
+          0%, 100% { border-color: var(--border, #3a3630); }
+          50% { border-color: var(--accent-gold-muted, #a08850); }
         }
         .si-drop-icon {
           font-size: 32px; margin-bottom: 8px;
@@ -189,28 +189,28 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
           50% { transform: translateY(-4px); }
         }
         .si-drop-text {
-          font-size: 14px; color: #888; margin-bottom: 12px;
+          font-size: 14px; color: var(--text-secondary, #8a8478); margin-bottom: 12px;
         }
         .si-drop-hint {
-          font-size: 12px; color: #555; margin-bottom: 16px;
+          font-size: 12px; color: var(--text-muted, #5c5750); margin-bottom: 16px;
         }
         .si-drop-btns {
           display: flex; gap: 8px; justify-content: center;
         }
         .si-drop-btn {
           padding: 7px 16px;
-          border: 1px solid #3a3a4a;
+          border: 1px solid var(--border, #3a3630);
           background: transparent;
           border-radius: 6px;
-          color: #888; font-size: 13px; font-weight: 600;
+          color: var(--text-secondary, #8a8478); font-size: 13px; font-weight: 600;
           cursor: pointer; font-family: inherit;
           transition: all 0.15s;
         }
-        .si-drop-btn:hover { border-color: #667eea; color: #667eea; }
+        .si-drop-btn:hover { border-color: var(--accent-gold, #c9a96e); color: var(--accent-gold, #c9a96e); }
         .si-drop-btn.primary {
-          background: #667eea; border-color: #667eea; color: #fff;
+          background: var(--accent-gold, #c9a96e); border-color: var(--accent-gold, #c9a96e); color: #fff;
         }
-        .si-drop-btn.primary:hover { background: #5a6fd6; }
+        .si-drop-btn.primary:hover { background: var(--accent-gold-muted, #a08850); }
 
         /* Error state on drop zone */
         .si-drop.error { border-color: #f87171; animation: none; }
@@ -222,7 +222,7 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
         }
         .si-preview img {
           max-height: 200px; max-width: 100%; border-radius: 8px;
-          border: 1px solid #3a3a4a;
+          border: 1px solid var(--border, #3a3630);
         }
         .si-preview-btns {
           display: flex; gap: 8px; justify-content: center; margin-top: 10px;
@@ -232,21 +232,21 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
         .si-parsing {
           position: relative; margin: 12px 0;
           border-radius: 10px; overflow: hidden;
-          border: 1.5px dashed #3a3a4a;
+          border: 1.5px dashed var(--border, #3a3630);
         }
         .si-parsing-bg {
           padding: 32px; text-align: center;
         }
         .si-spinner {
           width: 28px; height: 28px;
-          border: 2px solid #3a3a4a;
-          border-top-color: #667eea;
+          border: 2px solid var(--border, #3a3630);
+          border-top-color: var(--accent-gold, #c9a96e);
           border-radius: 50%;
           animation: siSpin 0.7s linear infinite;
           margin: 0 auto 10px;
         }
         @keyframes siSpin { to { transform: rotate(360deg); } }
-        .si-parsing-text { font-size: 14px; color: #667eea; }
+        .si-parsing-text { font-size: 14px; color: var(--accent-gold, #c9a96e); }
 
         /* Results */
         .si-results-header {
@@ -254,12 +254,12 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
           margin-bottom: 12px;
         }
         .si-results-count {
-          color: #667eea; margin-left: 4px;
+          color: var(--accent-gold, #c9a96e); margin-left: 4px;
         }
         .si-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
         .si-row {
           display: flex; align-items: center; gap: 8px;
-          background: #252836; border-radius: 8px; padding: 10px 12px;
+          background: var(--bg-card, #211f1b); border-radius: 8px; padding: 10px 12px;
         }
         .si-row input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
         .si-row-info { flex: 1; }
@@ -267,7 +267,7 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
           font-size: 14px; font-weight: 600; color: #e0e0e0;
         }
         .si-row-code {
-          font-size: 12px; color: #888; font-family: 'SF Mono', 'Fira Code', monospace;
+          font-size: 12px; color: var(--text-secondary, #8a8478); font-family: 'SF Mono', 'Fira Code', monospace;
         }
         .source-badge {
           font-size: 11px; font-weight: 500;
@@ -279,7 +279,7 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
           border: 1px solid #1e3a5f;
         }
         .source-badge.manual {
-          background: #2a2a2a; color: #888;
+          background: #2a2a2a; color: var(--text-secondary, #8a8478);
           border: 1px solid #3a3a3a;
         }
         .si-row-disabled {
@@ -312,7 +312,7 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
           font-size: 40px; margin-bottom: 12px;
         }
         .si-error-state-msg {
-          font-size: 14px; color: #888; margin-bottom: 16px;
+          font-size: 14px; color: var(--text-secondary, #8a8478); margin-bottom: 16px;
         }
 
         /* Actions */

@@ -22,12 +22,12 @@ interface Props {
 }
 
 const CATEGORY_META: Record<string, { icon: string; zh: string; color: string }> = {
-  market:       { icon: '📈', zh: '市场影响',   color: '#667eea' },
-  policy:       { icon: '🏛️', zh: '政策影响',   color: '#f59e0b' },
-  earnings:     { icon: '💰', zh: '业绩公告',    color: '#10b981' },
-  product_tech: { icon: '🚀', zh: '产品技术',    color: '#8b5cf6' },
-  competition:  { icon: '⚔️',  zh: '竞争动态',   color: '#ef4444' },
-  management:   { icon: '👤', zh: '管理层变动',  color: '#06b6d4' },
+  market:       { icon: '📈', zh: '市场影响',   color: '#c9a96e' },
+  policy:       { icon: '🏛️', zh: '政策影响',   color: '#b08040' },
+  earnings:     { icon: '💰', zh: '业绩公告',    color: '#e63946' },
+  product_tech: { icon: '🚀', zh: '产品技术',    color: '#a07cdc' },
+  competition:  { icon: '⚔️',  zh: '竞争动态',   color: '#d97706' },
+  management:   { icon: '👤', zh: '管理层变动',  color: '#2d936c' },
 };
 
 type SentimentFilter = 'all' | 'positive' | 'negative';
@@ -55,16 +55,16 @@ export default function NewsCategoryPanel({ symbol, activeCategory, onCategoryCh
   function handleSentimentClick(filter: SentimentFilter) {
     if (!activeCategory) return;
     const cat = categories[activeCategory];
-    const meta = CATEGORY_META[activeCategory] || { color: '#667eea' };
+    const meta = CATEGORY_META[activeCategory] || { color: '#c9a96e' };
     setSentimentFilter(filter);
     let ids: string[];
     let color: string;
     if (filter === 'positive') {
       ids = cat.positive_ids;
-      color = '#00e676';
+      color = '#e63946';
     } else if (filter === 'negative') {
       ids = cat.negative_ids;
-      color = '#ff5252';
+      color = '#2d936c';
     } else {
       ids = cat.article_ids;
       color = meta.color;
@@ -79,7 +79,7 @@ export default function NewsCategoryPanel({ symbol, activeCategory, onCategoryCh
       <div className="news-category-bar">
         {keys.map((key) => {
           const cat = categories[key];
-          const meta = CATEGORY_META[key] || { icon: '📌', zh: key, color: '#667eea' };
+          const meta = CATEGORY_META[key] || { icon: '📌', zh: key, color: '#c9a96e' };
           const isActive = activeCategory === key;
           return (
             <button

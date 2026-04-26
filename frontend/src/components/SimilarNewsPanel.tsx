@@ -41,7 +41,7 @@ interface Props {
 function pct(v: number | null) {
   if (v === null || v === undefined) return <span style={{ color: '#666' }}>-</span>;
   const pctVal = v * 100;
-  const color = pctVal > 0 ? '#26a69a' : pctVal < 0 ? '#ef5350' : '#888';
+  const color = pctVal > 0 ? '#e63946' : pctVal < 0 ? '#2d936c' : '#8a8478';
   return <span style={{ color, fontWeight: 600 }}>{pctVal > 0 ? '+' : ''}{pctVal.toFixed(2)}%</span>;
 }
 
