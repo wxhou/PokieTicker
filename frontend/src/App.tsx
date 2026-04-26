@@ -67,9 +67,12 @@ function App() {
           .filter((t: any) => t.last_ohlc_fetch)
           .map((t: any) => t.symbol);
         setActiveTickers(tickers);
-        // Restore last viewed symbol from localStorage, fallback to first ticker
+        // Priority: URL param > localStorage > first ticker
+        const urlSymbol = new URLSearchParams(window.location.search).get('symbol');
         const last = localStorage.getItem(LAST_SYMBOL_KEY);
-        const initial = last && tickers.includes(last) ? last : (tickers[0] ?? '');
+        const initial = (urlSymbol && tickers.includes(urlSymbol)) ? urlSymbol
+          : (last && tickers.includes(last)) ? last
+          : (tickers[0] ?? '');
         if (initial) {
           setSelectedSymbol(initial);
           localStorage.setItem(LAST_SYMBOL_KEY, initial);
