@@ -40,7 +40,7 @@ class TestRealtimeNewsEndpoint:
             if "news_sources" in q
             else (
                 MagicMock(fetchone=lambda: stock_row, fetchall=lambda: stock_data)
-                if "FROM stocks" in q or "stocks WHERE" in q
+                if "tickers" in q
                 else MagicMock(fetchall=lambda: [], fetchone=lambda: None)
             )
         )
