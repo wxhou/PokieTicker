@@ -53,5 +53,17 @@ logs/
 # OS
 Thumbs.db
 
+# Tool configs
+.claude/
+.codebuddy/
+.gstack/
+.playwright-mcp/
+
+# Test results & screenshots
+frontend/test-results/
+tests/playwright/
+*.png
+!frontend/public/**/*.png
+
 # OpenSpec change management
 openspec/
