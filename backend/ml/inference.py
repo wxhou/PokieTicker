@@ -158,12 +158,13 @@ def _find_similar_periods(
     return results
 
 
-def generate_forecast(symbol: str, window_days: int = 7) -> dict:
+def generate_forecast(symbol: str, window_days: int = 7, lang: str = "zh") -> dict:
     """Generate a complete forecast report for a symbol.
 
     Args:
         symbol: Ticker symbol
         window_days: Look-back window (7 or 30)
+        lang: Language for conclusion text ("zh" or "en")
 
     Returns:
         Complete forecast with prediction, similar periods, recent news, conclusion.
@@ -341,7 +342,7 @@ def generate_forecast(symbol: str, window_days: int = 7) -> dict:
 
     # 5. Generate conclusion (pure statistics, no AI API)
     conclusion = _build_conclusion(
-        symbol, window_days, news_summary, prediction, similar_stats
+        symbol, window_days, news_summary, prediction, similar_stats, lang=lang
     )
 
     last_date = df.iloc[-1]["trade_date"].strftime("%Y-%m-%d")
@@ -364,48 +365,68 @@ def _build_conclusion(
     news_summary: dict,
     prediction: dict,
     similar_stats: dict,
+    lang: str = "zh",
 ) -> str:
-    """Build an English-language conclusion from statistical signals."""
+    """Build a conclusion from statistical signals in the specified language."""
+    zh = lang == "zh"
     parts = []
 
-    window_label = f"past {window_days} days" if window_days <= 7 else f"past {window_days} days (~1 month)"
     n = news_summary["total"]
     ratio = news_summary["sentiment_ratio"]
 
     # News summary
     if n == 0:
-        parts.append(f"{symbol} has no related news in the {window_label}.")
+        parts.append(f"{symbol}近{window_days}天无相关新闻。" if zh else f"{symbol} has no related news in the past {window_days} days.")
     else:
-        tone = "leaning positive" if ratio > 0.1 else "leaning negative" if ratio < -0.1 else "neutral"
-        parts.append(
-            f"{symbol} had {n} related news in the {window_label}, "
-            f"{news_summary['positive']} positive / {news_summary['negative']} negative, "
-            f"overall sentiment {tone} ({ratio:+.2f})."
-        )
+        if zh:
+            tone = "偏多" if ratio > 0.1 else "偏空" if ratio < -0.1 else "中性"
+            parts.append(
+                f"{symbol}近{window_days}天有{n}条相关新闻，"
+                f"其中{news_summary['positive']}条利好、{news_summary['negative']}条利空，"
+                f"整体情绪{tone}（{ratio:+.2f}）。"
+            )
+        else:
+            tone = "leaning positive" if ratio > 0.1 else "leaning negative" if ratio < -0.1 else "neutral"
+            parts.append(
+                f"{symbol} had {n} related news in the past {window_days} days, "
+                f"{news_summary['positive']} positive / {news_summary['negative']} negative, "
+                f"overall sentiment {tone} ({ratio:+.2f})."
+            )
 
     # Model prediction
-    horizon_labels = [
-        ("Short-term (T+1)", "t1"), ("Mid-term (T+3)", "t3"), ("Mid-term (T+5)", "t5"),
-    ]
+    horizon_labels_zh = [("短期(T+1)", "t1"), ("中期(T+3)", "t3"), ("中期(T+5)", "t5")]
+    horizon_labels_en = [("Short-term (T+1)", "t1"), ("Mid-term (T+3)", "t3"), ("Mid-term (T+5)", "t5")]
+    horizon_labels = horizon_labels_zh if zh else horizon_labels_en
+
     for h_label, h_key in horizon_labels:
         p = prediction.get(h_key)
         if not p:
             continue
-        d = "bullish" if p["direction"] == "up" else "bearish"
+        d = "看多" if zh and p["direction"] == "up" else "看空" if zh else "bullish" if p["direction"] == "up" else "bearish"
         conf = p["confidence"] * 100
         model_tag = f"[{p.get('model_type', 'XGBoost')}]" if p.get("model_type") else ""
-        parts.append(f"{model_tag} Model {h_label} prediction: {d}, confidence {conf:.0f}%.")
+        if zh:
+            parts.append(f"{model_tag}模型{h_label}预测：{d}，置信度{conf:.0f}%。")
+        else:
+            parts.append(f"{model_tag} Model {h_label} prediction: {d}, confidence {conf:.0f}%.")
 
     # Similar periods
     if similar_stats["count"] > 0:
         ur5 = similar_stats.get("up_ratio_5d")
         ar5 = similar_stats.get("avg_ret_5d")
         if ur5 is not None and ar5 is not None:
-            parts.append(
-                f"Among {similar_stats['count']} historically similar periods, "
-                f"{ur5*100:.0f}% rose in the following 5 days, "
-                f"with an average return of {ar5:+.1f}%."
-            )
+            if zh:
+                parts.append(
+                    f"在{similar_stats['count']}个历史相似区间中，"
+                    f"其后5日上涨比例为{ur5*100:.0f}%，"
+                    f"平均收益{ar5:+.1f}%。"
+                )
+            else:
+                parts.append(
+                    f"Among {similar_stats['count']} historically similar periods, "
+                    f"{ur5*100:.0f}% rose in the following 5 days, "
+                    f"with an average return of {ar5:+.1f}%."
+                )
 
     # Overall judgment
     signals = []
@@ -427,11 +448,19 @@ def _build_conclusion(
 
     if signals:
         avg_signal = sum(signals) / len(signals)
-        if avg_signal > 0.3:
-            parts.append("Multi-signal assessment: leaning bullish.")
-        elif avg_signal < -0.3:
-            parts.append("Multi-signal assessment: leaning bearish.")
+        if zh:
+            if avg_signal > 0.3:
+                parts.append("多信号综合评估：偏看多。")
+            elif avg_signal < -0.3:
+                parts.append("多信号综合评估：偏看空。")
+            else:
+                parts.append("多信号综合评估：方向不明，建议观望。")
         else:
-            parts.append("Multi-signal assessment: direction unclear, recommend holding.")
+            if avg_signal > 0.3:
+                parts.append("Multi-signal assessment: leaning bullish.")
+            elif avg_signal < -0.3:
+                parts.append("Multi-signal assessment: leaning bearish.")
+            else:
+                parts.append("Multi-signal assessment: direction unclear, recommend holding.")
 
     return " ".join(parts)

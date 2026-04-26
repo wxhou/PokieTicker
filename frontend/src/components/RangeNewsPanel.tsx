@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useLang } from '../LanguageContext';
+import { t } from '../i18n';
 
 interface NewsItem {
   news_id: string;
@@ -48,6 +50,7 @@ function pct(v: number | null) {
 }
 
 export default function RangeNewsPanel({ symbol, startDate, endDate, priceChange, onClose, onAskAI }: Props) {
+  const { lang } = useLang();
   const [data, setData] = useState<RangeNewsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -69,37 +72,37 @@ export default function RangeNewsPanel({ symbol, startDate, endDate, priceChange
   return (
     <div className="news-panel">
       <div className="news-panel-header">
-        <h2>区间新闻</h2>
+        <h2>{t('news.rangeTitle', lang)}</h2>
         <span className={`range-news-change ${isUp ? 'up' : 'down'}`}>
           {isUp ? '+' : ''}{change.toFixed(2)}%
         </span>
-        <button className="range-clear-btn" onClick={onClose}>关闭</button>
+        <button className="range-clear-btn" onClick={onClose}>{t('news.rangeClose', lang)}</button>
       </div>
 
       <div className="range-news-dates">
         {startDate} ~ {endDate}
-        {data && <span className="news-count" style={{ marginLeft: 8 }}>{data.total}条</span>}
+        {data && <span className="news-count" style={{ marginLeft: 8 }}>{data.total}{t('news.articleCount', lang)}</span>}
       </div>
 
       {loading ? (
         <div className="news-empty">
           <div className="range-loading">
             <div className="range-spinner" />
-            <span>加载区间新闻...</span>
+            <span>{t('news.loadingRange', lang)}</span>
           </div>
         </div>
       ) : !data || data.total === 0 ? (
-        <div className="news-empty">该区间暂无新闻</div>
+        <div className="news-empty">{t('news.noNews', lang)}</div>
       ) : (
         <div className="news-list">
           {/* Bullish section */}
           {data.top_bullish.length > 0 && (
             <div className="range-news-section">
               <div className="range-news-section-title bullish">
-                ▲ 利好新闻 ({data.top_bullish.length})
+                ▲ {t('news.bullish', lang)} ({data.top_bullish.length})
               </div>
               {data.top_bullish.map((item) => (
-                <RangeNewsCard key={item.news_id} item={item} />
+                <RangeNewsCard key={item.news_id} item={item} lang={lang} />
               ))}
             </div>
           )}
@@ -108,10 +111,10 @@ export default function RangeNewsPanel({ symbol, startDate, endDate, priceChange
           {data.top_bearish.length > 0 && (
             <div className="range-news-section">
               <div className="range-news-section-title bearish">
-                ▼ 利空新闻 ({data.top_bearish.length})
+                ▼ {t('news.bearish', lang)} ({data.top_bearish.length})
               </div>
               {data.top_bearish.map((item) => (
-                <RangeNewsCard key={item.news_id} item={item} />
+                <RangeNewsCard key={item.news_id} item={item} lang={lang} />
               ))}
             </div>
           )}
@@ -123,11 +126,11 @@ export default function RangeNewsPanel({ symbol, startDate, endDate, priceChange
                 className="range-news-all-btn"
                 onClick={() => setShowAll(!showAll)}
               >
-                {showAll ? '收起' : '展开'}全部 {data.total} 条
+                {showAll ? t('news.collapse', lang) : t('news.expand', lang)}{t('news.all', lang)} {data.total} {t('pred.news', lang)}
                 <span className="range-news-all-arrow">{showAll ? '▲' : '▼'}</span>
               </button>
               {showAll && data.articles.map((item) => (
-                <RangeNewsCard key={item.news_id} item={item} />
+                <RangeNewsCard key={item.news_id} item={item} lang={lang} />
               ))}
             </div>
           )}
@@ -135,9 +138,9 @@ export default function RangeNewsPanel({ symbol, startDate, endDate, priceChange
           {/* Ask AI button */}
           <button
             className="range-news-ai-btn"
-            onClick={() => onAskAI("哪些新闻在驱动价格波动？")}
+            onClick={() => onAskAI(t('range.askQuestions', lang))}
           >
-            问涨讯
+            {t('news.askAI', lang)}
           </button>
         </div>
       )}
@@ -145,7 +148,7 @@ export default function RangeNewsPanel({ symbol, startDate, endDate, priceChange
   );
 }
 
-function RangeNewsCard({ item }: { item: NewsItem }) {
+function RangeNewsCard({ item, lang }: { item: NewsItem; lang: 'zh' | 'en' }) {
   const sentiment = item.sentiment || 'neutral';
   const borderClass = sentiment === 'positive' ? 'card-positive' : sentiment === 'negative' ? 'card-negative' : 'card-neutral';
 

@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useLang } from '../LanguageContext';
+import { t } from '../i18n';
 
 interface RangeSelection {
   startDate: string;
@@ -16,16 +18,17 @@ interface Props {
   onClose: () => void;
 }
 
-const PRESET_QUESTIONS = [
-  "哪些新闻在驱动价格波动？",
-  "总结该区间的重点新闻",
-  "有哪些利好和利空因素？",
-];
-
 export default function RangeQueryPopup({ range, chartRect, onAsk, onClose }: Props) {
+  const { lang } = useLang();
   const [custom, setCustom] = useState('');
   const popupRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const PRESET_QUESTIONS = [
+    t('range.askQuestions', lang),
+    t('range.askSummary', lang),
+    t('range.askFactors', lang),
+  ];
 
   // Close on click outside
   useEffect(() => {
@@ -66,7 +69,7 @@ export default function RangeQueryPopup({ range, chartRect, onAsk, onClose }: Pr
         </span>
       </div>
 
-      <div className="range-popup-label">问涨讯</div>
+      <div className="range-popup-label">{t('news.askAI', lang)}</div>
 
       {PRESET_QUESTIONS.map((q) => (
         <button
@@ -89,7 +92,7 @@ export default function RangeQueryPopup({ range, chartRect, onAsk, onClose }: Pr
         <input
           ref={inputRef}
           type="text"
-          placeholder="输入您的问题..."
+          placeholder={t('range.inputQuestion', lang)}
           value={custom}
           onChange={(e) => setCustom(e.target.value)}
         />

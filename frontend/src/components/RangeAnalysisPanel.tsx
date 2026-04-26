@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { useLang } from '../LanguageContext';
+import { t } from '../i18n';
 
 interface RangeAnalysis {
   symbol: string;
@@ -32,6 +34,7 @@ interface Props {
 }
 
 export default function RangeAnalysisPanel({ symbol, startDate, endDate, question, onClear }: Props) {
+  const { lang } = useLang();
   const [data, setData] = useState<RangeAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,13 +64,13 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
       })
       .catch((err) => {
         if (!axios.isCancel(err)) {
-          setError('分析失败');
+          setError(t('range.analysisFail', lang));
         }
       })
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [symbol, startDate, endDate, question]);
+  }, [symbol, startDate, endDate, question, lang]);
 
   const changePct = data?.price_change_pct ?? 0;
   const isUp = changePct >= 0;
@@ -75,14 +78,14 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
   return (
     <div className="news-panel range-panel">
       <div className="news-panel-header">
-        <h2>区间分析</h2>
-        <button className="range-clear-btn" onClick={onClear}>关闭</button>
+        <h2>{t('range.analysis', lang)}</h2>
+        <button className="range-clear-btn" onClick={onClear}>{t('news.rangeClose', lang)}</button>
       </div>
 
       {loading ? (
         <div className="news-list" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32 }}>
           <div className="range-spinner" />
-          <span style={{ color: '#aab', fontSize: 15 }}>AI 分析中 {startDate} ~ {endDate}...</span>
+          <span style={{ color: '#aab', fontSize: 15 }}>{t('range.aiAnalyzing', lang)} {startDate} ~ {endDate}...</span>
           <div className="ai-loading-skeleton">
             <div className="skeleton-line" style={{ width: '90%' }} />
             <div className="skeleton-line" style={{ width: '75%' }} />
@@ -112,7 +115,7 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
               </span>
             </div>
             <div className="range-meta">
-              {data.trading_days}个交易日 · {data.news_count}条新闻
+              {data.trading_days}{t('range.tradingDays', lang)} · {data.news_count}{t('news.articleCount', lang)}
             </div>
           </div>
 
@@ -126,7 +129,7 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
           {/* Key events */}
           {data.analysis.key_events?.length > 0 && (
             <div className="range-section">
-              <h3 className="range-section-title">关键事件</h3>
+              <h3 className="range-section-title">{t('range.keyEvents', lang)}</h3>
               <ul className="range-events">
                 {data.analysis.key_events.map((evt, i) => (
                   <li key={i}>{evt}</li>
@@ -138,7 +141,7 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
           {/* Bullish factors */}
           {data.analysis.bullish_factors?.length > 0 && (
             <div className="range-section">
-              <h3 className="range-section-title">看多因素</h3>
+              <h3 className="range-section-title">{t('range.bullishFactors', lang)}</h3>
               {data.analysis.bullish_factors.map((f, i) => (
                 <div key={i} className="reason up">
                   <span className="reason-icon">+</span> {f}
@@ -150,7 +153,7 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
           {/* Bearish factors */}
           {data.analysis.bearish_factors?.length > 0 && (
             <div className="range-section">
-              <h3 className="range-section-title">看空因素</h3>
+              <h3 className="range-section-title">{t('range.bearishFactors', lang)}</h3>
               {data.analysis.bearish_factors.map((f, i) => (
                 <div key={i} className="reason down">
                   <span className="reason-icon">-</span> {f}
@@ -162,7 +165,7 @@ export default function RangeAnalysisPanel({ symbol, startDate, endDate, questio
           {/* Trend analysis */}
           {data.analysis.trend_analysis && (
             <div className="range-section">
-              <h3 className="range-section-title">趋势分析</h3>
+              <h3 className="range-section-title">{t('range.trendAnalysis', lang)}</h3>
               <p className="range-trend">{data.analysis.trend_analysis}</p>
             </div>
           )}

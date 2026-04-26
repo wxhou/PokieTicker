@@ -1,10 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import { useLang } from '../LanguageContext';
+import { t } from '../i18n';
 
 interface Ticker {
   symbol: string;
   name: string;
-  sector?: string;
+}
+
+interface TickerInfo {
+  symbol: string;
+  name: string;
 }
 
 interface Props {
@@ -14,36 +20,33 @@ interface Props {
   onAdd: (symbol: string) => void;
 }
 
-const GROUPS: Record<string, string[]> = {
-  '科技': ['002415', '000063', '002371', '688981', '688256', '688396', '002049', '300223', '688521'],
-  '新能源': ['300750', '002594', '300014', '688005', '002812', '600438', '300274', '600905'],
-  '白酒': ['600519', '000858', '000568', '600809', '002304', '600702', '000596', '603369'],
-  '医药': ['600276', '000538', '300760', '300122', '688180', '603259', '300015', '002007'],
-  '消费': ['000568', '600887', '002304', '000333', '603288', '600600', '002557', '000895'],
-  '半导体': ['688981', '688256', '688396', '002371', '002049', '688521', '688008', '688012'],
-  '金融': ['600036', '601318', '600016', '601166', '600000', '000001', '601398', '601288'],
-  '地产': ['000002', '600048', '001979', '600606', '600383', '601155', '000671', '600823'],
-  '军工': ['002025', '600893', '600760', '002013', '600316', '600862', '688185', '000738'],
-  'AI': ['300024', '603019', '002410', '300229', '688041', '300678', '688787', '300308'],
-  '其他': [],
-};
-
 export default function StockSelector({ activeTickers, selectedSymbol, onSelect, onAdd }: Props) {
+  const { lang } = useLang();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Ticker[]>([]);
   const [showSearch, setShowSearch] = useState(false);
-  const [showPanel, setShowPanel] = useState(false);
+  const [tickerNames, setTickerNames] = useState<Record<string, string>>({});
   const searchRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch names for active tickers
+  useEffect(() => {
+    axios.get('/api/stocks')
+      .then((res) => {
+        const map: Record<string, string> = {};
+        for (const t of res.data) {
+          map[t.symbol] = t.name;
+        }
+        setTickerNames(map);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowSearch(false);
-      }
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setShowPanel(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -69,80 +72,51 @@ export default function StockSelector({ activeTickers, selectedSymbol, onSelect,
     }, 300);
   }
 
-  function handlePick(ticker: Ticker) {
+  function handlePick(t: TickerInfo) {
     setQuery('');
     setShowSearch(false);
-    setShowPanel(false);
-    if (!activeTickers.includes(ticker.symbol)) {
-      onAdd(ticker.symbol);
+    if (!activeTickers.includes(t.symbol)) {
+      onAdd(t.symbol);
     }
-    onSelect(ticker.symbol);
+    onSelect(t.symbol);
   }
 
-  function handleSelectTicker(sym: string) {
-    setShowPanel(false);
-    onSelect(sym);
+  function displayName(sym: string) {
+    return tickerNames[sym] || sym;
   }
 
-  // Build groups filtered to only tickers that exist in our data
-  const activeSet = new Set(activeTickers);
-  const renderedGroups = Object.entries(GROUPS)
-    .map(([label, symbols]) => ({
-      label,
-      symbols: symbols.filter((s) => activeSet.has(s)),
-    }))
-    .filter((g) => g.symbols.length > 0);
-
-  const assigned = new Set(renderedGroups.flatMap((g) => g.symbols));
-  const ungrouped = activeTickers.filter((s) => !assigned.has(s)).sort();
-  if (ungrouped.length > 0) {
-    const otherGroup = renderedGroups.find((g) => g.label === '其他');
-    if (otherGroup) {
-      otherGroup.symbols.push(...ungrouped);
-    } else {
-      renderedGroups.push({ label: '其他', symbols: ungrouped });
-    }
+  function displayCode(sym: string) {
+    return sym.replace(/\.(SH|SZ)$/, '');
   }
 
   return (
     <div className="stock-selector">
-      {/* Current ticker button — click to open dropdown */}
-      <div className="ticker-dropdown-wrapper" ref={panelRef}>
+      <div className="ticker-tabs">
+        {activeTickers.map((sym) => (
+          <button
+            key={sym}
+            className={`ticker-tab ${sym === selectedSymbol ? 'active' : ''}`}
+            onClick={() => onSelect(sym)}
+            title={`${tickerNames[sym] || sym} ${sym}`}
+          >
+            <span className="ticker-tab-name">{displayName(sym)}</span>
+            <span className="ticker-tab-code">{displayCode(sym)}</span>
+          </button>
+        ))}
         <button
-          className="ticker-current"
-          onClick={() => setShowPanel((v) => !v)}
+          className="ticker-tab ticker-tab-add"
+          onClick={() => inputRef.current?.focus()}
+          title={t('selector.addTitle', lang)}
         >
-          <span className="ticker-current-symbol">{selectedSymbol || '---'}</span>
-          <span className={`ticker-arrow ${showPanel ? 'open' : ''}`}>&#9662;</span>
+          +
         </button>
-
-        {showPanel && (
-          <div className="ticker-panel">
-            {renderedGroups.map((group) => (
-              <div className="ticker-panel-group" key={group.label}>
-                <div className="ticker-panel-group-label">{group.label}</div>
-                <div className="ticker-panel-group-items">
-                  {group.symbols.map((sym) => (
-                    <button
-                      key={sym}
-                      className={`ticker-panel-item ${sym === selectedSymbol ? 'active' : ''}`}
-                      onClick={() => handleSelectTicker(sym)}
-                    >
-                      {sym}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Search */}
       <div className="search-wrapper" ref={searchRef}>
         <input
+          ref={inputRef}
           type="text"
-          placeholder="搜索股票..."
+          placeholder={t('selector.search', lang)}
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
           onFocus={() => results.length > 0 && setShowSearch(true)}
@@ -151,7 +125,8 @@ export default function StockSelector({ activeTickers, selectedSymbol, onSelect,
           <ul className="search-dropdown">
             {results.map((t) => (
               <li key={t.symbol} onClick={() => handlePick(t)}>
-                <strong>{t.symbol}</strong> <span>{t.name}</span>
+                <strong>{t.name}</strong>
+                <span>{t.symbol}</span>
               </li>
             ))}
           </ul>

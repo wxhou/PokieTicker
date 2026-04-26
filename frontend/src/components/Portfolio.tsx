@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import ScreenshotImport from './ScreenshotImport';
+import { useLang } from '../LanguageContext';
+import { t } from '../i18n';
 
 interface Holding {
   id: number;
@@ -30,6 +32,7 @@ interface Props {
 }
 
 export default function Portfolio({ onBack }: Props) {
+  const { lang } = useLang();
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
@@ -66,7 +69,7 @@ export default function Portfolio({ onBack }: Props) {
         setToken(null);
         setShowLogin(true);
       } else {
-        setError('加载失败');
+        setError(t('portfolio.loadFail', lang));
       }
     }
     setLoading(false);
@@ -77,13 +80,13 @@ export default function Portfolio({ onBack }: Props) {
     setAuthError('');
     try {
       const res = await axios.post('/api/auth/login', { email, password });
-      const t = res.data.access_token;
-      localStorage.setItem('zx_auth_token', t);
-      setToken(t);
+      const tk = res.data.access_token;
+      localStorage.setItem('zx_auth_token', tk);
+      setToken(tk);
       setShowLogin(false);
-      loadPortfolios(t);
+      loadPortfolios(tk);
     } catch (e: any) {
-      setAuthError(extractError(e, '登录失败'));
+      setAuthError(extractError(e, t('portfolio.loginFail', lang)));
     }
   }
 
@@ -94,7 +97,7 @@ export default function Portfolio({ onBack }: Props) {
       await axios.post('/api/auth/register', { email, password });
       await handleLogin(e);
     } catch (e: any) {
-      setAuthError(extractError(e, '注册失败'));
+      setAuthError(extractError(e, t('portfolio.signUpFail', lang)));
     }
   }
 
@@ -114,7 +117,7 @@ export default function Portfolio({ onBack }: Props) {
       setPortfolios([res.data, ...portfolios]);
       setNewName('');
     } catch (e: any) {
-      setError(extractError(e, '创建失败'));
+      setError(extractError(e, t('portfolio.createFail', lang)));
     }
   }
 
@@ -126,7 +129,7 @@ export default function Portfolio({ onBack }: Props) {
       });
       setPortfolios(portfolios.filter(p => p.id !== id));
     } catch (e: any) {
-      setError(extractError(e, '删除失败'));
+      setError(extractError(e, t('portfolio.deleteFail', lang)));
     }
   }
 
@@ -137,11 +140,10 @@ export default function Portfolio({ onBack }: Props) {
       await axios.post('/api/portfolio/holdings', { portfolio_id: portfolioId, stock_code: code }, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      // Reload portfolios
       loadPortfolios(token);
       setAddCode(prev => ({ ...prev, [portfolioId]: '' }));
     } catch (e: any) {
-      setError(extractError(e, '添加失败'));
+      setError(extractError(e, t('portfolio.addFail', lang)));
     }
   }
 
@@ -156,7 +158,7 @@ export default function Portfolio({ onBack }: Props) {
         holdings: p.holdings.filter(h => h.id !== holdingId),
       })));
     } catch (e: any) {
-      setError(extractError(e, '移除失败'));
+      setError(extractError(e, t('portfolio.removeFail', lang)));
     }
   }
 
@@ -164,7 +166,7 @@ export default function Portfolio({ onBack }: Props) {
     return (
       <div className="portfolio-loading">
         <div className="range-spinner" />
-        <span>加载中...</span>
+        <span>{t('news.loading', lang)}</span>
       </div>
     );
   }
@@ -173,21 +175,21 @@ export default function Portfolio({ onBack }: Props) {
     return (
       <div className="portfolio-auth">
         <div className="portfolio-auth-card">
-          <h2>登录涨讯</h2>
-          <p className="portfolio-auth-sub">管理您的持仓组合</p>
+          <h2>{t('portfolio.loginTitle', lang)}</h2>
+          <p className="portfolio-auth-sub">{t('portfolio.loginSub', lang)}</p>
           {authError && <div className="auth-error">{authError}</div>}
           <form onSubmit={handleLogin}>
             <div className="form-group">
-              <label>邮箱</label>
+              <label>{t('portfolio.email', lang)}</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" required />
             </div>
             <div className="form-group">
-              <label>密码</label>
+              <label>{t('portfolio.password', lang)}</label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
             </div>
             <div className="auth-actions">
-              <button type="submit" className="btn-primary">登录</button>
-              <button type="button" className="btn-secondary" onClick={handleRegister}>注册</button>
+              <button type="submit" className="btn-primary">{t('portfolio.signIn', lang)}</button>
+              <button type="button" className="btn-secondary" onClick={handleRegister}>{t('portfolio.signUp', lang)}</button>
             </div>
           </form>
         </div>
@@ -198,10 +200,10 @@ export default function Portfolio({ onBack }: Props) {
   return (
     <div className="portfolio-page">
       <div className="portfolio-header">
-        <h2>我的持仓</h2>
-        <button className="btn-ghost" onClick={() => setShowScreenshot(true)}>截图导入</button>
-        <button className="btn-ghost" onClick={onBack}>返回分析</button>
-        <button className="btn-ghost btn-danger" onClick={handleLogout}>退出登录</button>
+        <h2>{t('portfolio.title', lang)}</h2>
+        <button className="btn-ghost" onClick={() => setShowScreenshot(true)}>{t('portfolio.screenshotImport', lang)}</button>
+        <button className="btn-ghost" onClick={onBack}>{t('nav.back', lang)}</button>
+        <button className="btn-ghost btn-danger" onClick={handleLogout}>{t('portfolio.signOut', lang)}</button>
       </div>
 
       {error && <div className="portfolio-error">{error}</div>}
@@ -211,16 +213,16 @@ export default function Portfolio({ onBack }: Props) {
           type="text"
           value={newName}
           onChange={e => setNewName(e.target.value)}
-          placeholder="新建组合名称（如：科技股组合）"
+          placeholder={t('portfolio.createPlaceholder', lang)}
           onKeyDown={e => e.key === 'Enter' && createPortfolio()}
         />
-        <button className="btn-primary" onClick={createPortfolio}>创建</button>
+        <button className="btn-primary" onClick={createPortfolio}>{t('portfolio.create', lang)}</button>
       </div>
 
       {portfolios.length === 0 ? (
         <div className="portfolio-empty">
-          <p>暂无持仓组合</p>
-          <p className="portfolio-empty-hint">创建组合后，可添加股票代码（最多10只）</p>
+          <p>{t('portfolio.empty', lang)}</p>
+          <p className="portfolio-empty-hint">{t('portfolio.addHint2', lang)}</p>
         </div>
       ) : (
         <div className="portfolio-list">
@@ -228,8 +230,8 @@ export default function Portfolio({ onBack }: Props) {
             <div key={p.id} className="portfolio-card">
               <div className="portfolio-card-header">
                 <h3>{p.name}</h3>
-                <span className="portfolio-card-meta">{p.holdings.length}/10只</span>
-                <button className="btn-icon danger" onClick={() => deletePortfolio(p.id)} title="删除组合">✕</button>
+                <span className="portfolio-card-meta">{p.holdings.length}{t('portfolio.holdingsCount', lang)}</span>
+                <button className="btn-icon danger" onClick={() => deletePortfolio(p.id)} title={t('portfolio.deletePortfolio', lang)}>✕</button>
               </div>
               <div className="portfolio-holdings">
                 {p.holdings.map(h => (
@@ -237,7 +239,7 @@ export default function Portfolio({ onBack }: Props) {
                     <span className="holding-code">{h.stock_code}</span>
                     {h.source && (
                       <span className={`source-badge ${h.source === 'screenshot' ? 'screenshot' : 'manual'}`}>
-                        {h.source === 'screenshot' ? '截图' : '手动'}
+                        {h.source === 'screenshot' ? t('portfolio.screenshot', lang) : t('portfolio.manual', lang)}
                       </span>
                     )}
                     {h.close != null && (
@@ -246,7 +248,7 @@ export default function Portfolio({ onBack }: Props) {
                         {(h.pct_chg || 0) >= 0 ? '+' : ''}{((h.pct_chg || 0)).toFixed(2)}%
                       </span>
                     )}
-                    <button className="btn-icon" onClick={() => removeHolding(h.id)} title="移除">✕</button>
+                    <button className="btn-icon" onClick={() => removeHolding(h.id)} title={t('portfolio.remove', lang)}>✕</button>
                   </div>
                 ))}
               </div>
@@ -256,7 +258,7 @@ export default function Portfolio({ onBack }: Props) {
                     type="text"
                     value={addCode[p.id] || ''}
                     onChange={e => setAddCode(prev => ({ ...prev, [p.id]: e.target.value }))}
-                    placeholder="输入股票代码（如600519）"
+                    placeholder={t('portfolio.addCodePlaceholder', lang)}
                     onKeyDown={e => e.key === 'Enter' && addHolding(p.id)}
                   />
                   <button className="btn-add" onClick={() => addHolding(p.id)}>+</button>

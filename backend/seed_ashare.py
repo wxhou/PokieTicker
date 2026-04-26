@@ -18,13 +18,42 @@ from backend.pipeline.alignment import align_news_for_symbol
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-# Target stocks
+# Target stocks — expanded to 30 A-share tickers for better ML training
 STOCKS = [
+    # Original 5
     {"code": "600519", "name": "贵州茅台", "resolved": "600519.SH"},
     {"code": "300750", "name": "宁德时代", "resolved": "300750.SZ"},
     {"code": "002594", "name": "比亚迪",   "resolved": "002594.SZ"},
     {"code": "600036", "name": "招商银行", "resolved": "600036.SH"},
     {"code": "000001", "name": "上证指数", "resolved": "000001.SH"},
+    # Large-cap blue chips
+    {"code": "601318", "name": "中国平安", "resolved": "601318.SH"},
+    {"code": "600900", "name": "长江电力", "resolved": "600900.SH"},
+    {"code": "601012", "name": "隆基绿能", "resolved": "601012.SH"},
+    {"code": "000858", "name": "五粮液",   "resolved": "000858.SZ"},
+    {"code": "000333", "name": "美的集团", "resolved": "000333.SZ"},
+    {"code": "600276", "name": "恒瑞医药", "resolved": "600276.SH"},
+    {"code": "601888", "name": "中国中免", "resolved": "601888.SH"},
+    {"code": "600031", "name": "三一重工", "resolved": "600031.SH"},
+    # Tech / growth
+    {"code": "002475", "name": "立讯精密", "resolved": "002475.SZ"},
+    {"code": "300059", "name": "东方财富", "resolved": "300059.SZ"},
+    {"code": "002415", "name": "海康威视", "resolved": "002415.SZ"},
+    {"code": "688981", "name": "中芯国际", "resolved": "688981.SH"},
+    {"code": "300015", "name": "爱尔眼科", "resolved": "300015.SZ"},
+    {"code": "002230", "name": "科大讯飞", "resolved": "002230.SZ"},
+    {"code": "300124", "name": "汇川技术", "resolved": "300124.SZ"},
+    # Financials
+    {"code": "601398", "name": "工商银行", "resolved": "601398.SH"},
+    {"code": "600030", "name": "中信证券", "resolved": "600030.SH"},
+    {"code": "601688", "name": "华泰证券", "resolved": "601688.SH"},
+    # Consumer / healthcare
+    {"code": "000568", "name": "泸州老窖", "resolved": "000568.SZ"},
+    {"code": "600309", "name": "万华化学", "resolved": "600309.SH"},
+    {"code": "002714", "name": "牧原股份", "resolved": "002714.SZ"},
+    # Energy / materials
+    {"code": "601857", "name": "中国石油", "resolved": "601857.SH"},
+    {"code": "600028", "name": "中国石化", "resolved": "600028.SH"},
 ]
 
 # 2 years of daily data (extra buffer for alignment horizon T+10)

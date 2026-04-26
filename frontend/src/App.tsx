@@ -10,6 +10,9 @@ import RangeNewsPanel from './components/RangeNewsPanel';
 import SimilarDaysPanel from './components/SimilarDaysPanel';
 import PredictionPanel from './components/PredictionPanel';
 import Portfolio from './components/Portfolio';
+import { Agentation } from 'agentation';
+import { LanguageProvider, useLang } from './LanguageContext';
+import { t } from './i18n';
 import './App.css';
 
 const LAST_SYMBOL_KEY = 'zx_last_symbol';
@@ -30,6 +33,7 @@ interface ArticleSelection {
 type Route = 'main' | 'portfolio';
 
 function App() {
+  const { lang, setLang, isZh } = useLang();
   const [route, setRoute] = useState<Route>('main');
   const [activeTickers, setActiveTickers] = useState<string[]>([]);
   const [selectedSymbol, setSelectedSymbol] = useState('');
@@ -239,7 +243,7 @@ function App() {
       <header className="app-header">
         <div className="header-left">
           <h1 className="brand-name">涨讯</h1>
-          <span className="brand-sub">A股事件驱动分析</span>
+          <span className="brand-sub">{t('brand.sub', lang)}</span>
         </div>
         <StockSelector
           activeTickers={activeTickers}
@@ -250,18 +254,18 @@ function App() {
         {selectedRange ? (
           <div className="header-ohlc">
             <span className="ohlc-date">{selectedRange.startDate} ~ {selectedRange.endDate}</span>
-            <span className="range-badge">区间已选</span>
+            <span className="range-badge">{t('range.selected', lang)}</span>
           </div>
         ) : hoveredOhlc ? (
           <div className="header-ohlc">
             <span className="ohlc-date">{hoveredOhlc.date}</span>
-            <span className="ohlc-label">开</span>
+            <span className="ohlc-label">{t('ohlc.open', lang)}</span>
             <span className="ohlc-val">{hoveredOhlc.open.toFixed(2)}</span>
-            <span className="ohlc-label">高</span>
+            <span className="ohlc-label">{t('ohlc.high', lang)}</span>
             <span className="ohlc-val">{hoveredOhlc.high.toFixed(2)}</span>
-            <span className="ohlc-label">低</span>
+            <span className="ohlc-label">{t('ohlc.low', lang)}</span>
             <span className="ohlc-val">{hoveredOhlc.low.toFixed(2)}</span>
-            <span className="ohlc-label">收</span>
+            <span className="ohlc-label">{t('ohlc.close', lang)}</span>
             <span className="ohlc-val">{hoveredOhlc.close.toFixed(2)}</span>
             <span className={`ohlc-change ${hoveredOhlc.change >= 0 ? 'up' : 'down'}`}>
               {hoveredOhlc.change >= 0 ? '+' : ''}
@@ -271,10 +275,17 @@ function App() {
         ) : null}
         <div className="header-right">
           <button
+            className="nav-btn lang-toggle"
+            onClick={() => setLang(isZh ? 'en' : 'zh')}
+            title={isZh ? 'Switch to English' : '切换到中文'}
+          >
+            {isZh ? 'EN' : '中'}
+          </button>
+          <button
             className="nav-btn"
             onClick={() => setRoute(route === 'portfolio' ? 'main' : 'portfolio')}
           >
-            {route === 'portfolio' ? '返回分析' : '我的持仓'}
+            {route === 'portfolio' ? t('nav.back', lang) : t('nav.portfolio', lang)}
           </button>
           <a href="https://github.com/wxhou/PokieTicker" target="_blank" rel="noopener noreferrer" className="header-link header-github">
             <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
@@ -313,7 +324,7 @@ function App() {
               )}
             </>
           ) : (
-            <div className="chart-placeholder">请选择股票查看K线图</div>
+            <div className="chart-placeholder">{t('chart.placeholder', lang)}</div>
           )}
         </div>
         )}
@@ -335,10 +346,17 @@ function App() {
       </main>
 
       <footer className="global-disclaimer">
-        涨讯仅供信息参考，不构成投资建议。股市有风险，投资需谨慎。本平台不具备证券投资咨询资质。
+        {t('footer.disclaimer', lang)}
       </footer>
+      <Agentation accentColor="#c9a96e" />
     </div>
   );
 }
 
-export default App;
+export default function AppWithLang() {
+  return (
+    <LanguageProvider>
+      <App />
+    </LanguageProvider>
+  );
+}

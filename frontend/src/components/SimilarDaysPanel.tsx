@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useLang } from '../LanguageContext';
+import { t } from '../i18n';
 
 interface NewsSnippet {
   title: string;
@@ -39,6 +41,7 @@ interface Props {
 }
 
 export default function SimilarDaysPanel({ symbol, date, onClose }: Props) {
+  const { lang } = useLang();
   const [data, setData] = useState<SimilarDaysData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -49,23 +52,23 @@ export default function SimilarDaysPanel({ symbol, date, onClose }: Props) {
     axios
       .get(`/api/predict/${symbol}/similar-days?date=${date}`)
       .then((res) => setData(res.data))
-      .catch(() => setError('查找相似日失败'))
+      .catch(() => setError(t('sim.searchFail', lang)))
       .finally(() => setLoading(false));
-  }, [symbol, date]);
+  }, [symbol, date, lang]);
 
   return (
     <div className="news-panel">
       <div className="news-panel-header">
-        <h2>相似日</h2>
+        <h2>{t('sim.title', lang)}</h2>
         <span className="news-date-badge">{date}</span>
-        <button className="range-clear-btn" onClick={onClose}>关闭</button>
+        <button className="range-clear-btn" onClick={onClose}>{t('news.rangeClose', lang)}</button>
       </div>
 
       {loading ? (
         <div className="news-empty">
           <div className="range-loading">
             <div className="range-spinner" />
-            <span>查找相似日...</span>
+            <span>{t('sim.searching', lang)}</span>
           </div>
         </div>
       ) : error ? (
@@ -74,16 +77,16 @@ export default function SimilarDaysPanel({ symbol, date, onClose }: Props) {
         <div className="news-list">
           {/* Target day info */}
           <div className="sim-target-card">
-            <div className="sim-section-label">目标日特征</div>
+            <div className="sim-section-label">{t('sim.targetFeatures', lang)}</div>
             <div className="sim-feat-grid">
               <div className="sim-feat">
-                <span className="sim-feat-label">情绪</span>
+                <span className="sim-feat-label">{t('sim.sentiment', lang)}</span>
                 <span className={`sim-feat-val ${(data.target_features.sentiment_score ?? 0) >= 0 ? 'up' : 'down'}`}>
                   {(data.target_features.sentiment_score ?? 0).toFixed(2)}
                 </span>
               </div>
               <div className="sim-feat">
-                <span className="sim-feat-label">新闻数</span>
+                <span className="sim-feat-label">{t('sim.newsCount', lang)}</span>
                 <span className="sim-feat-val">{data.target_features.n_articles ?? 0}</span>
               </div>
               <div className="sim-feat">
@@ -91,7 +94,7 @@ export default function SimilarDaysPanel({ symbol, date, onClose }: Props) {
                 <span className="sim-feat-val">{(data.target_features.rsi_14 ?? 0).toFixed(0)}</span>
               </div>
               <div className="sim-feat">
-                <span className="sim-feat-label">前日涨跌</span>
+                <span className="sim-feat-label">{t('sim.prevChange', lang)}</span>
                 <span className={`sim-feat-val ${(data.target_features.ret_1d ?? 0) >= 0 ? 'up' : 'down'}`}>
                   {((data.target_features.ret_1d ?? 0) * 100).toFixed(1)}%
                 </span>
@@ -101,28 +104,28 @@ export default function SimilarDaysPanel({ symbol, date, onClose }: Props) {
 
           {/* Stats summary */}
           <div className="sim-stats-card">
-            <div className="sim-section-label">历史规律 ({data.stats.count}个相似日)</div>
+            <div className="sim-section-label">{t('sim.history', lang)} ({data.stats.count}{t('sim.similarDays', lang)})</div>
             <div className="sim-stats-grid">
               <div className="sim-stat-block">
-                <span className="sim-stat-title">T+1 上涨率</span>
+                <span className="sim-stat-title">{t('sim.upRatioT1', lang)}</span>
                 <span className={`sim-stat-big ${(data.stats.up_ratio_t1 ?? 0) >= 0.5 ? 'up' : 'down'}`}>
                   {data.stats.up_ratio_t1 !== null ? `${(data.stats.up_ratio_t1 * 100).toFixed(0)}%` : '-'}
                 </span>
               </div>
               <div className="sim-stat-block">
-                <span className="sim-stat-title">T+5 上涨率</span>
+                <span className="sim-stat-title">{t('sim.upRatioT5', lang)}</span>
                 <span className={`sim-stat-big ${(data.stats.up_ratio_t5 ?? 0) >= 0.5 ? 'up' : 'down'}`}>
                   {data.stats.up_ratio_t5 !== null ? `${(data.stats.up_ratio_t5 * 100).toFixed(0)}%` : '-'}
                 </span>
               </div>
               <div className="sim-stat-block">
-                <span className="sim-stat-title">T+1 均收益</span>
+                <span className="sim-stat-title">{t('sim.avgRetT1', lang)}</span>
                 <span className={`sim-stat-big ${(data.stats.avg_ret_t1 ?? 0) >= 0 ? 'up' : 'down'}`}>
                   {data.stats.avg_ret_t1 !== null ? `${data.stats.avg_ret_t1 >= 0 ? '+' : ''}${data.stats.avg_ret_t1.toFixed(2)}%` : '-'}
                 </span>
               </div>
               <div className="sim-stat-block">
-                <span className="sim-stat-title">T+5 均收益</span>
+                <span className="sim-stat-title">{t('sim.avgRetT5', lang)}</span>
                 <span className={`sim-stat-big ${(data.stats.avg_ret_t5 ?? 0) >= 0 ? 'up' : 'down'}`}>
                   {data.stats.avg_ret_t5 !== null ? `${data.stats.avg_ret_t5 >= 0 ? '+' : ''}${data.stats.avg_ret_t5.toFixed(2)}%` : '-'}
                 </span>
@@ -131,26 +134,26 @@ export default function SimilarDaysPanel({ symbol, date, onClose }: Props) {
           </div>
 
           {/* Similar days list */}
-          <div className="sim-section-label" style={{ padding: '8px 4px 4px' }}>相似日列表</div>
+          <div className="sim-section-label" style={{ padding: '8px 4px 4px' }}>{t('sim.similarList', lang)}</div>
           {data.similar_days.map((day) => (
             <div key={day.date} className="sim-day-card">
               <div className="sim-day-header">
                 <span className="sim-day-date">{day.date}</span>
-                <span className="sim-day-score">sim {(day.similarity * 100).toFixed(0)}%</span>
+                <span className="sim-day-score">{t('pred.match', lang)} {(day.similarity * 100).toFixed(0)}%</span>
               </div>
               <div className="sim-day-details">
                 <span className={`sim-day-chip ${day.sentiment_score >= 0 ? 'up' : 'down'}`}>
-                  情绪 {day.sentiment_score.toFixed(2)}
+                  {t('pred.sentiment', lang)} {day.sentiment_score.toFixed(2)}
                 </span>
                 <span className="sim-day-chip neutral">
-                  {day.n_articles}篇新闻
+                  {day.n_articles}{t('pred.articles', lang)}
                 </span>
                 <span className="sim-day-chip neutral">
                   RSI {day.rsi_14.toFixed(0)}
                 </span>
               </div>
               <div className="sim-day-returns">
-                <span className="sim-day-ret-label">后续:</span>
+                <span className="sim-day-ret-label">{t('sim.followUp', lang)}</span>
                 {day.ret_t1_after !== null && (
                   <span className={`sim-day-ret ${day.ret_t1_after >= 0 ? 'up' : 'down'}`}>
                     T+1 {day.ret_t1_after >= 0 ? '+' : ''}{day.ret_t1_after.toFixed(2)}%

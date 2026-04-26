@@ -46,11 +46,11 @@ def get_backtest(symbol: str, horizon: str = Query("t1", pattern="^t[15]$")):
 
 
 @router.get("/{symbol}/forecast")
-def get_forecast(symbol: str, window: int = Query(7, ge=3, le=60)):
+def get_forecast(symbol: str, window: int = Query(7, ge=3, le=60), lang: str = Query("zh", pattern="^(zh|en)$")):
     """Generate forecast based on recent news window (7d or 30d)."""
     from backend.ml.inference import generate_forecast
 
-    result = generate_forecast(symbol.upper(), window)
+    result = generate_forecast(symbol.upper(), window, lang=lang)
     if "error" in result:
         return {**EXPERIMENTAL_RESPONSE, "available": False, "error": result["error"]}
     return {**EXPERIMENTAL_RESPONSE, "available": True, **result}

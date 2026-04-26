@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { useLang } from '../LanguageContext';
+import { t } from '../i18n';
 
 interface NewsItem {
   news_id: string;
@@ -44,12 +46,12 @@ function sortBySentiment(items: NewsItem[]): NewsItem[] {
 function pct(v: number | null) {
   if (v === null || v === undefined) return '-';
   const pctVal = v * 100;
-  // A-share: up=red, down=green
   const color = pctVal > 0 ? '#e63946' : pctVal < 0 ? '#2d936c' : '#8a8478';
   return <span style={{ color, fontWeight: 600 }}>{pctVal > 0 ? '+' : ''}{pctVal.toFixed(2)}%</span>;
 }
 
 export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highlightedNewsId, isLocked, onUnlock, highlightedCategoryIds }: Props) {
+  const { lang } = useLang();
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [displayDate, setDisplayDate] = useState<string | null>(null);
@@ -87,11 +89,26 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
     }, 120);
   }, [symbol, hoveredDate]);
 
-  // Clear cache on symbol change
+  // Load latest news on symbol change
   useEffect(() => {
     cacheRef.current.clear();
     setNews([]);
     setDisplayDate(null);
+
+    // Fetch recent news, then filter to the latest trade_date
+    axios
+      .get(`/api/news/${symbol}`)
+      .then((res) => {
+        if (res.data && res.data.length > 0) {
+          const latestDate = res.data[0].trade_date;
+          const latestNews = res.data.filter((n: NewsItem) => n.trade_date === latestDate);
+          const cacheKey = `${symbol}_${latestDate}`;
+          cacheRef.current.set(cacheKey, latestNews);
+          setNews(sortBySentiment(latestNews));
+          setDisplayDate(latestDate);
+        }
+      })
+      .catch(() => {});
   }, [symbol]);
 
   // Auto-scroll to highlighted article
@@ -115,9 +132,9 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
     return (
       <div className="news-panel">
         <div className="news-panel-header">
-          <h2>新闻</h2>
+          <h2>{t('news.title', lang)}</h2>
         </div>
-        <div className="news-empty">点击K线图上的点查看新闻</div>
+        <div className="news-empty">{t('news.clickChart', lang)}</div>
       </div>
     );
   }
@@ -125,20 +142,20 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
   return (
     <div className="news-panel">
       <div className="news-panel-header">
-        <h2>新闻</h2>
+        <h2>{t('news.title', lang)}</h2>
         <span className="news-date-badge">{displayDate}</span>
-        <span className="news-count">{news.length}条新闻</span>
+        <span className="news-count">{news.length}{t('news.articleCount', lang)}</span>
         {isLocked && (
-          <button className="lock-badge" onClick={onUnlock} title="点击解锁">
-            已锁定
+          <button className="lock-badge" onClick={onUnlock} title={t('news.clickUnlock', lang)}>
+            {t('news.locked', lang)}
           </button>
         )}
       </div>
 
       {loading && news.length === 0 ? (
-        <div className="news-empty">加载中...</div>
+        <div className="news-empty">{t('news.loading', lang)}</div>
       ) : news.length === 0 ? (
-        <div className="news-empty">该日期暂无新闻</div>
+        <div className="news-empty">{t('news.noNewsDate', lang)}</div>
       ) : (
         <div className="news-list" ref={listRef}>
           {news.map((item) => {
@@ -197,7 +214,7 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
                         className="find-similar-btn"
                         onClick={(e) => { e.stopPropagation(); onFindSimilar(item.news_id); }}
                       >
-                        相似新闻
+                        {t('news.similarNews', lang)}
                       </button>
                     )}
                   </div>

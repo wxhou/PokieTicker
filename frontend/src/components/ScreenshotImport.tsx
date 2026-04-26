@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import axios from 'axios';
+import { useLang } from '../LanguageContext';
+import { t } from '../i18n';
 
 interface Holding {
   stock_code: string;
@@ -17,6 +19,7 @@ interface Props {
 }
 
 export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
+  const { lang } = useLang();
   const [phase, setPhase] = useState<'idle' | 'preview' | 'parsing' | 'results' | 'empty' | 'error'>('idle');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -26,15 +29,16 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
   const [toast, setToast] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const handleFileChange = useCallback((f: File) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowed.includes(f.type)) {
-      setErrorMsg('仅支持 jpg、png、webp 格式');
+      setErrorMsg(t('si.invalidFormat', lang));
       return;
     }
     if (f.size > 10 * 1024 * 1024) {
-      setErrorMsg('图片不能超过10MB');
+      setErrorMsg(t('si.fileTooLarge', lang));
       return;
     }
     setErrorMsg('');
@@ -42,7 +46,7 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
     const url = URL.createObjectURL(f);
     setPreviewUrl(url);
     setPhase('preview');
-  }, []);
+  }, [lang]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -80,9 +84,9 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
       }
     } catch (e: any) {
       const status = e.response?.status;
-      if (status === 422) setErrorMsg('仅支持 jpg、png、webp 格式');
-      else if (status === 413) setErrorMsg('图片不能超过10MB');
-      else setErrorMsg('AI 识别服务暂时不可用，请稍后重试');
+      if (status === 422) setErrorMsg(t('si.invalidFormat', lang));
+      else if (status === 413) setErrorMsg(t('si.fileTooLarge', lang));
+      else setErrorMsg(t('si.aiUnavailable', lang));
       setPhase('error');
     }
   };
@@ -98,20 +102,22 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
       });
       const data = res.data as { imported: number; skipped: number; not_found: string[]; message: string };
       if (data.imported > 0 && data.skipped === 0 && data.not_found.length === 0) {
-        setToast(`导入成功`);
+        setToast(t('portfolio.importSuccess', lang));
       } else {
         const parts = [];
-        if (data.imported > 0) parts.push(`导入成功${data.imported}只`);
-        if (data.skipped > 0) parts.push(`跳过${data.skipped}只`);
-        if (data.not_found.length > 0) parts.push(`${data.not_found.length}只不存在`);
-        setToast(parts.join('，'));
+        if (data.imported > 0) parts.push(`${t('portfolio.importSuccess', lang)}${data.imported}${t('si.stocks', lang)}`);
+        if (data.skipped > 0) parts.push(`${t('news.collapse', lang)}${data.skipped}${t('si.stocks', lang)}`);
+        if (data.not_found.length > 0) parts.push(`${data.not_found.length}${t('si.stocks', lang)}${lang === 'zh' ? '不存在' : ' not found'}`);
+        setToast(parts.join(lang === 'zh' ? '，' : ', '));
       }
-      setTimeout(() => setToast(''), 3000);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setToast(''), 3000);
       onSuccess();
       onClose();
     } catch {
-      setToast('导入失败，请重试');
-      setTimeout(() => setToast(''), 5000);
+      setToast(t('portfolio.importFail', lang));
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setToast(''), 5000);
       setPhase('results');
     }
   };
@@ -279,8 +285,8 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
           border: 1px solid #1e3a5f;
         }
         .source-badge.manual {
-          background: #2a2a2a; color: var(--text-secondary, #8a8478);
-          border: 1px solid #3a3a3a;
+          background: var(--bg-card, #211f1b); color: var(--text-secondary, #8a8478);
+          border: 1px solid var(--border, #3a3630);
         }
         .si-row-disabled {
           opacity: 0.4; cursor: not-allowed;
@@ -345,8 +351,8 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
           {toast && <div className="si-toast">{toast}</div>}
 
           <div className="si-header">
-            <span className="si-title" id="si-title">截图导入</span>
-            <button className="si-close" onClick={onClose} aria-label="关闭">✕</button>
+            <span className="si-title" id="si-title">{t('si.title', lang)}</span>
+            <button className="si-close" onClick={onClose} aria-label={t('si.close', lang)}>✕</button>
           </div>
 
           {/* Idle / Drop zone */}
@@ -356,7 +362,7 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
               className={`si-drop${errorMsg ? ' error' : ''}`}
               role="button"
               tabIndex={0}
-              aria-label="拖拽截图或点击上传"
+              aria-label={t('si.dragDrop', lang)}
               onClick={() => fileInputRef.current?.click()}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
               onDragOver={e => { e.preventDefault(); dropRef.current?.classList.add('drag-over'); }}
@@ -364,14 +370,14 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
               onDrop={handleDrop}
             >
               <div className="si-drop-icon">📷</div>
-              <div className="si-drop-text">拖拽截图或点击上传</div>
-              <div className="si-drop-hint">支持 jpg、png、webp，限10MB</div>
+              <div className="si-drop-text">{t('si.dragDrop', lang)}</div>
+              <div className="si-drop-hint">{t('si.supportedFormats', lang)}</div>
               <div className="si-drop-btns">
                 <button className="si-drop-btn" onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}>
-                  选择文件
+                  {t('si.selectFile', lang)}
                 </button>
                 <button className="si-drop-btn primary" onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }} capture="environment">
-                  拍照
+                  {t('si.takePhoto', lang)}
                 </button>
               </div>
               {errorMsg && <div className="si-error-text">{errorMsg}</div>}
@@ -390,16 +396,16 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
           {phase === 'preview' && (
             <>
               <div className="si-preview">
-                {previewUrl && <img src={previewUrl} alt="截图预览" />}
+                {previewUrl && <img src={previewUrl} alt={t('si.title', lang)} />}
                 <div className="si-preview-btns">
-                  <button className="si-drop-btn" onClick={handleRetake}>重新拍照</button>
-                  <button className="si-drop-btn primary" onClick={handleUpload}>确认上传</button>
+                  <button className="si-drop-btn" onClick={handleRetake}>{t('si.retake', lang)}</button>
+                  <button className="si-drop-btn primary" onClick={handleUpload}>{t('si.confirmUpload', lang)}</button>
                 </div>
               </div>
               <div className="si-parsing">
                 <div className="si-parsing-bg">
                   <div className="si-spinner" />
-                  <div className="si-parsing-text">识别中...</div>
+                  <div className="si-parsing-text">{t('si.recognizing', lang)}</div>
                 </div>
               </div>
             </>
@@ -410,7 +416,7 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
             <div className="si-parsing">
               <div className="si-parsing-bg">
                 <div className="si-spinner" />
-                <div className="si-parsing-text">识别中...</div>
+                <div className="si-parsing-text">{t('si.recognizing', lang)}</div>
               </div>
             </div>
           )}
@@ -419,7 +425,7 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
           {phase === 'results' && (
             <>
               <div className="si-results-header">
-                识别结果（<span className="si-results-count">{holdings.length}</span>只）
+                {t('si.results', lang)}（<span className="si-results-count">{holdings.length}</span>{t('si.stocks', lang)}）
               </div>
               <div className="si-list">
                 {holdings.map(h => (
@@ -428,14 +434,14 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
                       type="checkbox"
                       checked={selected.has(h.stock_code)}
                       onChange={() => toggleStock(h.stock_code)}
-                      aria-label={`${h.stock_name} ${h.stock_code} 来源${h.source}`}
+                      aria-label={`${h.stock_name} ${h.stock_code}`}
                     />
                     <div className="si-row-info">
                       <div className="si-row-name">{h.stock_name}</div>
                       <div className="si-row-code">
                         {h.stock_code}
-                        <span className={`source-badge ${h.source === '截图' ? 'screenshot' : 'manual'}`}>
-                          {h.source}
+                        <span className={`source-badge ${h.source === t('portfolio.screenshot', lang) || h.source === 'screenshot' ? 'screenshot' : 'manual'}`}>
+                          {h.source === 'screenshot' ? t('portfolio.screenshot', lang) : t('portfolio.manual', lang)}
                         </span>
                       </div>
                     </div>
@@ -444,10 +450,10 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
               </div>
               <div className="si-actions">
                 <button className="btn-primary" onClick={handleConfirm} disabled={selected.size === 0}>
-                  确认导入{selected.size > 0 ? ` (${selected.size})` : ''}
+                  {t('si.confirmImport', lang)}{selected.size > 0 ? ` (${selected.size})` : ''}
                 </button>
                 <button className="btn-secondary" onClick={onClose}>
-                  取消
+                  {t('si.cancel', lang)}
                 </button>
               </div>
             </>
@@ -457,9 +463,9 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
           {phase === 'empty' && (
             <div className="si-empty">
               <div className="si-empty-icon">❌</div>
-              <div className="si-empty-title">未能识别到股票</div>
-              <div className="si-empty-sub">截图不清晰或格式不支持</div>
-              <button className="btn-primary" onClick={handleRetake}>重新上传</button>
+              <div className="si-empty-title">{t('si.noStocks', lang)}</div>
+              <div className="si-empty-sub">{t('si.noStocksHint', lang)}</div>
+              <button className="btn-primary" onClick={handleRetake}>{t('si.reUpload', lang)}</button>
             </div>
           )}
         </div>

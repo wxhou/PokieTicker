@@ -64,18 +64,19 @@ body {
 
 .app-header h1, .brand-name {
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 900;
   color: var(--accent-red);
-  letter-spacing: 2px;
+  letter-spacing: 3px;
   margin: 0;
 }
 
 .brand-sub {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
   font-weight: 400;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
 .nav-btn {
@@ -96,12 +97,21 @@ body {
   color: var(--accent-gold);
 }
 
+.lang-toggle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 8px;
+  letter-spacing: 0.5px;
+  min-width: 28px;
+  text-align: center;
+}
+
 .header-ohlc {
   display: flex;
   align-items: center;
   gap: 5px;
   font-size: 13px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -179,133 +189,81 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
 }
 
-/* Current ticker button */
-.ticker-dropdown-wrapper {
-  position: relative;
-}
-
-.ticker-current {
+/* Ticker tab bar */
+.ticker-tabs {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.ticker-current:hover {
-  border-color: var(--accent-gold);
-}
-
-.ticker-current-symbol {
-  font-family: var(--font-mono);
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: 0.5px;
-}
-
-.ticker-arrow {
-  font-size: 12px;
-  color: var(--accent-gold);
-  transition: transform 0.2s;
-}
-
-.ticker-arrow.open {
-  transform: rotate(180deg);
-}
-
-/* Dropdown panel */
-.ticker-panel {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  width: 480px;
-  max-height: 420px;
-  overflow-y: auto;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px;
-  z-index: 200;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar) transparent;
-}
-
-.ticker-panel::-webkit-scrollbar {
-  width: 5px;
-}
-
-.ticker-panel::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.ticker-panel::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
-}
-
-.ticker-panel-group {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.ticker-panel-group-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent-gold);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  padding: 2px 4px;
-  border-bottom: 1px solid var(--border);
-}
-
-.ticker-panel-group-items {
-  display: flex;
-  flex-wrap: wrap;
   gap: 4px;
-  padding: 2px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex-shrink: 0;
 }
+.ticker-tabs::-webkit-scrollbar { display: none; }
 
-.ticker-panel-item {
-  padding: 4px 10px;
-  border: 1px solid var(--border-light);
+.ticker-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
   background: transparent;
-  border-radius: 5px;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
   color: var(--text-secondary);
-  transition: all 0.12s;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  transition: all 0.15s;
+  white-space: nowrap;
 }
 
-.ticker-panel-item:hover {
-  border-color: var(--accent-gold);
+.ticker-tab:hover {
   color: var(--text-primary);
-  background: rgba(102, 126, 234, 0.1);
+  background: var(--bg-card);
 }
 
-.ticker-panel-item.active {
-  background: var(--accent-gold);
-  color: var(--text-primary);
+.ticker-tab.active {
+  color: var(--accent-gold);
+  border-bottom-color: var(--accent-gold);
+  background: var(--bg-card);
+  font-weight: 700;
+}
+
+.ticker-tab-name {
+  font-size: 14px;
+}
+
+.ticker-tab-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.ticker-tab-add {
+  padding: 6px 10px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.ticker-tab-add:hover {
+  color: var(--accent-gold);
   border-color: var(--accent-gold);
+  background: rgba(201, 169, 110, 0.08);
 }
 
 /* Search */
 .search-wrapper {
   position: relative;
-  width: 160px;
+  width: 140px;
   flex-shrink: 0;
 }
 
@@ -314,10 +272,11 @@ body {
   padding: 6px 10px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 13px;
   outline: none;
+  font-family: var(--font-body);
 }
 
 .search-wrapper input:focus {
@@ -326,6 +285,7 @@ body {
 
 .search-wrapper input::placeholder {
   color: var(--text-muted);
+  font-size: 12px;
 }
 
 .search-dropdown {
@@ -335,7 +295,8 @@ body {
   right: 0;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 0 0 8px 8px;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
   list-style: none;
   max-height: 240px;
   overflow-y: auto;
@@ -346,8 +307,11 @@ body {
 .search-dropdown li {
   padding: 8px 12px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .search-dropdown li:hover {
@@ -356,7 +320,12 @@ body {
 
 .search-dropdown li strong {
   color: var(--accent-gold);
-  margin-right: 8px;
+}
+
+.search-dropdown li span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
 /* ===== Main Layout ===== */
@@ -398,6 +367,39 @@ body {
   min-height: 0;
   position: relative;
   background: #0a0908;
+}
+
+.chart-period-bar {
+  position: absolute;
+  top: 6px;
+  right: 46px;
+  display: flex;
+  gap: 2px;
+  z-index: 10;
+}
+
+.chart-period-btn {
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: #5c5750;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.chart-period-btn:hover {
+  color: #8a8478;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.chart-period-btn.active {
+  color: #c9a96e;
+  border-color: #3a3630;
+  background: rgba(201, 169, 110, 0.08);
 }
 
 .chart-container svg {
@@ -649,7 +651,7 @@ body {
   align-items: center;
   margin-top: 4px;
   padding-top: 4px;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--border-light);
 }
 
 .news-publisher {
@@ -665,7 +667,7 @@ body {
 .ret-chip {
   font-size: 13px;
   color: var(--text-secondary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 /* ===== Header Range Badge ===== */
@@ -782,7 +784,7 @@ body {
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .range-change {
@@ -926,7 +928,7 @@ body {
 .similar-stat-val {
   font-size: 15px;
   font-weight: 600;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .similar-stat-val.up {
@@ -957,7 +959,7 @@ body {
   font-size: 12px;
   color: var(--text-secondary);
   margin-left: auto;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .similar-title {
@@ -995,13 +997,13 @@ body {
 .range-popup-dates {
   font-size: 14px;
   color: #aaa;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .range-popup-change {
   font-size: 15px;
   font-weight: 700;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .range-popup-change.up { color: var(--accent-red-bright); }
@@ -1139,31 +1141,23 @@ body {
   overflow-y: auto;
 }
 
-.pred-disclaimer {
-  background: rgba(255, 82, 82, 0.12);
-  color: #ff8a80;
-  font-size: 11px;
-  padding: 4px 10px;
-  text-align: center;
-  border-top: 1px solid rgba(255, 82, 82, 0.2);
-  flex-shrink: 0;
-}
 
 .pred-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 16px;
+  padding: 10px 16px;
   cursor: pointer;
   user-select: none;
+  border-bottom: 1px solid var(--border);
 }
 
 .pred-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 1px;
 }
 
 .pred-loading-dot {
@@ -1229,7 +1223,7 @@ body {
 .pred-dir {
   font-size: 15px;
   font-weight: 700;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .pred-dir.up { color: var(--accent-red-bright); }
@@ -1259,13 +1253,13 @@ body {
   top: -4px;
   font-size: 12px;
   color: var(--text-secondary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .pred-news-badge {
   font-size: 12px;
   color: var(--accent-gold);
-  background: rgba(102, 126, 234, 0.1);
+  background: rgba(201, 169, 110, 0.1);
   padding: 1px 8px;
   border-radius: 10px;
   white-space: nowrap;
@@ -1286,12 +1280,12 @@ body {
 
 /* Forecast conclusion */
 .fc-conclusion {
-  font-size: 15px;
-  color: var(--text-primary);
-  line-height: 1.6;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.65;
   padding: 10px 12px;
   background: var(--bg-card);
-  border-radius: 8px;
+  border-radius: 0;
   margin-bottom: 10px;
   border-left: 3px solid var(--accent-gold);
   word-wrap: break-word;
@@ -1302,14 +1296,14 @@ body {
 .fc-predictions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 10px;
   min-width: 0;
 }
 
 .fc-pred-card {
   background: var(--bg-card);
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 12px;
   border-left: 3px solid var(--border);
   min-width: 0;
@@ -1337,7 +1331,7 @@ body {
   padding: 1px 5px;
   border-radius: 3px;
   background: var(--border);
-  color: #8b8bff;
+  color: var(--accent-gold);
   font-weight: 600;
   letter-spacing: 0.5px;
 }
@@ -1354,15 +1348,23 @@ body {
   margin-left: auto;
   font-size: 14px;
   font-weight: 600;
-  color: #aaa;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
 }
 
 .fc-pred-meta {
   font-size: 11px;
   color: var(--text-muted);
   margin-bottom: 8px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
+}
+
+.fc-meta-positive {
+  color: var(--accent-red-bright);
+}
+
+.fc-meta-negative {
+  color: var(--accent-green-bright);
 }
 
 /* Forecast drivers */
@@ -1382,11 +1384,11 @@ body {
   width: 80px;
   flex-shrink: 0;
   font-size: 11px;
-  color: #777;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .fc-driver-bar-track {
@@ -1411,7 +1413,7 @@ body {
   text-align: right;
   font-size: 10px;
   color: var(--text-muted);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1479,7 +1481,7 @@ body {
 .fc-stat-value {
   font-size: 17px;
   font-weight: 700;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .fc-stat-value.up { color: var(--accent-red-bright); }
@@ -1509,7 +1511,7 @@ body {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .fc-period-sim {
@@ -1537,7 +1539,7 @@ body {
   align-items: flex-start;
   gap: 8px;
   padding: 6px 0;
-  border-bottom: 1px solid #1f2233;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .fc-news-dot {
@@ -1567,7 +1569,7 @@ body {
 
 .fc-news-summary {
   font-size: 13px;
-  color: #777;
+  color: var(--text-muted);
   margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -1578,7 +1580,7 @@ body {
   font-size: 12px;
   color: var(--text-muted);
   white-space: nowrap;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 /* ===== Similar Days Panel ===== */
@@ -1619,7 +1621,7 @@ body {
 .sim-feat-val {
   font-size: 15px;
   font-weight: 600;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   color: var(--text-primary);
 }
 
@@ -1648,7 +1650,7 @@ body {
 .sim-stat-big {
   font-size: 20px;
   font-weight: 700;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .sim-stat-big.up { color: var(--accent-red-bright); }
@@ -1673,14 +1675,14 @@ body {
   font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .sim-day-score {
   font-size: 12px;
   color: var(--accent-gold);
   font-weight: 600;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .sim-day-details {
@@ -1694,7 +1696,7 @@ body {
   font-size: 12px;
   padding: 1px 6px;
   border-radius: 3px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
 }
 
@@ -1727,7 +1729,7 @@ body {
 .sim-day-ret {
   font-size: 13px;
   font-weight: 600;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .sim-day-ret.up { color: var(--accent-red-bright); }
@@ -1809,7 +1811,7 @@ body {
   align-items: center;
   gap: 10px;
   font-size: 15px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .pt-sentiment {
@@ -1977,7 +1979,7 @@ body {
   padding: 0 4px;
   border-radius: 3px;
   font-size: 14px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .fc-text-bull {
@@ -1993,13 +1995,13 @@ body {
 .fc-text-pct-up {
   font-weight: 600;
   color: var(--accent-red-bright);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .fc-text-pct-down {
   font-weight: 600;
   color: var(--accent-red-bright);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 /* ===== Forecast Hero Section ===== */
@@ -2057,7 +2059,7 @@ body {
   margin-left: auto;
   font-size: 24px;
   font-weight: 700;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   color: var(--text-primary);
 }
 
@@ -2126,7 +2128,7 @@ body {
 .fc-impact-ret {
   font-size: 15px;
   font-weight: 700;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .fc-impact-ret.up { color: var(--accent-red-bright); }
@@ -2159,7 +2161,7 @@ body {
   font-size: 12px;
   color: var(--text-muted);
   margin-left: auto;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .fc-impact-title {
@@ -2200,14 +2202,14 @@ body {
 .fc-deep-btn:disabled {
   color: var(--text-secondary);
   cursor: wait;
-  border-color: #333;
+  border-color: var(--border);
 }
 
 /* Deep analysis result */
 .fc-deep-result {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--border);
 }
 
 .fc-deep-discussion {
@@ -2270,7 +2272,7 @@ body {
   border: 1px solid var(--border);
   font-size: 13px;
   color: #aaa;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 /* ===== Custom Scrollbar for pred-details ===== */
@@ -2291,7 +2293,7 @@ body {
 .range-news-change {
   font-size: 15px;
   font-weight: 700;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   padding: 2px 8px;
   border-radius: 4px;
 }
@@ -2310,7 +2312,7 @@ body {
   padding: 8px 16px;
   font-size: 14px;
   color: var(--text-secondary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -2426,15 +2428,20 @@ body {
     font-size: 18px;
   }
   .ticker-tabs {
-    max-width: 300px;
+    max-width: 280px;
   }
   .ticker-tab {
-    padding: 6px 14px;
-    font-size: 15px;
+    padding: 5px 10px;
+    font-size: 13px;
+  }
+  .ticker-tab-name { font-size: 13px; }
+  .ticker-tab-code { font-size: 10px; }
+  .search-wrapper {
+    width: 120px;
   }
   .search-wrapper input {
-    font-size: 15px;
-    padding: 8px 12px;
+    font-size: 13px;
+    padding: 5px 8px;
   }
   /* Category bar */
   .news-category-bar {
@@ -2551,18 +2558,21 @@ body {
     display: none;
   }
   .ticker-tabs {
-    max-width: 200px;
+    max-width: 180px;
     gap: 2px;
   }
   .ticker-tab {
-    padding: 5px 10px;
-    font-size: 13px;
+    padding: 4px 8px;
+    font-size: 12px;
   }
+  .ticker-tab-name { font-size: 12px; }
+  .ticker-tab-code { font-size: 9px; }
   .search-wrapper {
-    width: 120px;
+    width: 100px;
   }
   .search-wrapper input {
-    font-size: 13px;
+    font-size: 12px;
+    padding: 4px 6px;
   }
   .news-area {
     border-right: none;
@@ -2732,7 +2742,7 @@ body {
 
 .portfolio-empty-hint {
   font-size: 13px;
-  color: #444;
+  color: var(--text-muted);
   margin-top: 8px;
 }
 
@@ -2767,7 +2777,7 @@ body {
   font-size: 12px;
   color: var(--accent-gold);
   font-weight: 600;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .portfolio-holdings {
@@ -2790,12 +2800,12 @@ body {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .holding-change {
   font-size: 12px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .holding-change.up { color: var(--accent-red-bright); }
@@ -3041,7 +3051,7 @@ body {
   border: 1px solid #1e3a5f;
 }
 .source-badge.manual {
-  background: #2a2a2a;
+  background: var(--bg-card);
   color: var(--text-secondary);
-  border: 1px solid #3a3a3a;
+  border: 1px solid var(--border);
 }
