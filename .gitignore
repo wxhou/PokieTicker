@@ -53,7 +53,8 @@ logs/
 # OS
 Thumbs.db
 
-# Tool configs
+# Claude Code
+CLAUDE.md
 .claude/
 .codebuddy/
 .gstack/
