@@ -31,8 +31,8 @@ def get_prediction(symbol: str, horizon: str = Query("t1", pattern="^t[15]$")):
 
     result = predict(symbol.upper(), horizon)
     if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-    return {**EXPERIMENTAL_RESPONSE, **result}
+        return {**EXPERIMENTAL_RESPONSE, "available": False, "error": result["error"]}
+    return {**EXPERIMENTAL_RESPONSE, "available": True, **result}
 
 
 @router.get("/{symbol}/backtest")
@@ -52,8 +52,8 @@ def get_forecast(symbol: str, window: int = Query(7, ge=3, le=60)):
 
     result = generate_forecast(symbol.upper(), window)
     if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-    return {**EXPERIMENTAL_RESPONSE, **result}
+        return {**EXPERIMENTAL_RESPONSE, "available": False, "error": result["error"]}
+    return {**EXPERIMENTAL_RESPONSE, "available": True, **result}
 
 
 @router.get("/{symbol}/similar-days")
@@ -63,5 +63,5 @@ def get_similar_days(symbol: str, date: str = Query(...), top_k: int = Query(10,
 
     result = find_similar_days(symbol.upper(), date, top_k)
     if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-    return {**EXPERIMENTAL_RESPONSE, **result}
+        return {**EXPERIMENTAL_RESPONSE, "available": False, "error": result["error"]}
+    return {**EXPERIMENTAL_RESPONSE, "available": True, **result}

@@ -200,8 +200,8 @@ export default function PredictionPanel({ symbol }: Props) {
     setLoading(true);
     setError('');
     Promise.all([
-      axios.get(`/api/predict/${symbol}/forecast?window=7`).then((res) => res.status < 400 ? res.data as Forecast : null).catch(() => null),
-      axios.get(`/api/predict/${symbol}/forecast?window=30`).then((res) => res.status < 400 ? res.data as Forecast : null).catch(() => null),
+      axios.get(`/api/predict/${symbol}/forecast?window=7`).then((res) => (res.status < 400 && res.data?.available) ? res.data as Forecast : null).catch(() => null),
+      axios.get(`/api/predict/${symbol}/forecast?window=30`).then((res) => (res.status < 400 && res.data?.available) ? res.data as Forecast : null).catch(() => null),
     ])
       .then(([f7, f30]) => {
         setForecast7(f7);
