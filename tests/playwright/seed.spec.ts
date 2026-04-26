@@ -7,7 +7,7 @@ import { existsSync } from 'fs';
 import { BasePage } from './pages/BasePage';
 
 // Customize these for your application
-const BASE_URL = process.env.BASE_URL || 'http://localhost:7777/PokieTicker';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
 /**
  * Page Object Pattern - extends BasePage for shared utilities
@@ -49,6 +49,7 @@ test.describe('Application smoke tests', () => {
       }
     };
     page.on('console', handler);
+    test.afterEach(() => page.off('console', handler));
     await page.reload();
     await page.waitForLoadState('networkidle');
     // Filter out known non-critical errors

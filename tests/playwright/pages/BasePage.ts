@@ -4,7 +4,7 @@
 
 import { Page, Locator, expect } from '@playwright/test';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:7777/PokieTicker';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
 export class BasePage {
   protected page: Page;

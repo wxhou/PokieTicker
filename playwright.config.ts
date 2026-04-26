@@ -94,6 +94,9 @@ export default defineConfig({
         storageState: './playwright/.auth/user.json',
       },
       dependencies: ['setup'],
+      // E2E tests for screenshot-portfolio may have timing issues in parallel
+      // Run these sequentially for stability
+      testMatch: /.*\.spec\.ts/,
     },
   ],
 });
