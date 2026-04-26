@@ -1,7 +1,9 @@
 """MiniMax Token Plan tools: realtime news search via web search."""
 
+import base64
 import hashlib
 import httpx
+import io
 import json
 import logging
 import re
@@ -17,6 +19,18 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://api.minimaxi.com/v1"
 TIMEOUT = 30.0
 CACHE_TTL_HOURS = 6
+VL_TIMEOUT = 60.0
+VL_MODEL = "MiniMax-VL-01"
+VL_PROMPT = """你是一个A股持仓识别助手。请从截图中提取所有股票信息。
+
+对于每只股票，返回JSON数组：
+- stock_code: A股股票代码（如600519），6位数字
+- stock_name: 公司简称（如贵州茅台）
+- quantity: 持仓数量（如有则填，无则填null）
+- source: 来源App名称（如雪球、同花顺、支付宝等，不确定填"截图"）
+
+只返回JSON数组，不要返回任何其他文字。
+如果无法识别某只股票，跳过它。"""
 
 
 def _compute_simhash(text: str) -> str:
@@ -108,7 +122,7 @@ class MiniMaxTools:
         # Stock name lookup
         conn = get_conn()
         stock = conn.execute(
-            "SELECT name FROM stocks WHERE symbol = ?",
+            "SELECT name FROM tickers WHERE symbol = ?",
             (symbol,),
         ).fetchone()
         conn.close()
@@ -208,6 +222,78 @@ class MiniMaxTools:
             if not is_dup:
                 result.append(item)
         return result
+
+    def parse_screenshot(self, image_bytes: bytes) -> list[dict]:
+        """Parse stock holdings from a screenshot using MiniMax VL model.
+
+        Args:
+            image_bytes: Raw image bytes (jpg/png/webp)
+
+        Returns:
+            List of dicts with keys: stock_code, stock_name, quantity, source, confidence, in_database
+        """
+        # Encode image to base64
+        b64 = base64.b64encode(image_bytes).decode("utf-8")
+        # Detect mime type from first bytes
+        if image_bytes[:3] == b"\xff\xd8\xff":
+            mime = "image/jpeg"
+        elif image_bytes[:4] == b"\x89PNG":
+            mime = "image/png"
+        elif image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
+            mime = "image/webp"
+        else:
+            mime = "image/jpeg"  # default
+
+        image_url = f"data:{mime};base64,{b64}"
+
+        # Call MiniMax VL endpoint
+        with httpx.Client(timeout=VL_TIMEOUT) as client:
+            resp = client.post(
+                f"{BASE_URL}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": VL_MODEL,
+                    "messages": [
+                        {"role": "user", "content": [{"type": "image_url", "image_url": {"url": image_url}}]},
+                        {"role": "user", "content": VL_PROMPT},
+                    ],
+                    "temperature": 0.1,
+                    "max_tokens": 2048,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            text = data["choices"][0]["message"]["content"]
+
+        # Parse VL JSON response
+        holdings = self._parse_vl_response(text)
+
+        # Check in_database for each stock
+        for h in holdings:
+            conn = get_conn()
+            exists = conn.execute("SELECT 1 FROM tickers WHERE symbol = ?", (h["stock_code"],)).fetchone()
+            conn.close()
+            h["in_database"] = exists is not None
+
+        return holdings
+
+    def _parse_vl_response(self, text: str) -> list[dict]:
+        """Parse VL JSON output into holdings list."""
+        items = _parse_json_robust(text)
+        return [
+            {
+                "stock_code": it.get("stock_code", "").strip(),
+                "stock_name": it.get("stock_name", "").strip(),
+                "quantity": it.get("quantity"),
+                "source": it.get("source", "截图"),
+                "confidence": 0.95,  # placeholder, not displayed in UI
+            }
+            for it in items
+            if it.get("stock_code") and it.get("stock_name")
+        ]
 
 
 def _store_news_to_db(items: list[dict]) -> None:

@@ -23,7 +23,9 @@ class DeepSeekProvider(SentimentProvider):
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or settings.deepseek_api_key
-        self.name = "DeepSeek-Chat"
+    @property
+    def name(self) -> str:
+        return "DeepSeek-Chat"
 
     def analyze(self, articles: List[Dict[str, Any]], symbol: str) -> List[SentimentResult]:
         """Analyze articles using DeepSeek."""

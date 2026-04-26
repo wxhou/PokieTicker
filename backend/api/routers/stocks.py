@@ -191,7 +191,7 @@ def _fetch_stock_data(resolved: str):
             )
             conn.execute(
                 "INSERT OR IGNORE INTO news_ticker (news_id, symbol) VALUES (?, ?)",
-                (news_id, plain),
+                (news_id, resolved),
             )
 
         conn.execute(

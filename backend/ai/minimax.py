@@ -16,7 +16,7 @@ from backend.ai.base import SentimentProvider, SentimentResult
 
 MODEL = "MiniMax-M2.5"
 BASE_URL = "https://api.minimaxi.com/v1"
-TIMEOUT = 10.0
+TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0)
 
 
 class MiniMaxProvider(SentimentProvider):
@@ -24,7 +24,9 @@ class MiniMaxProvider(SentimentProvider):
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or settings.minimax_api_key
-        self.name = "MiniMax-M2.5"
+    @property
+    def name(self) -> str:
+        return "MiniMax-M2.5"
 
     def analyze(self, articles: List[Dict[str, Any]], symbol: str) -> List[SentimentResult]:
         """Analyze articles using MiniMax M2.5."""
@@ -46,7 +48,7 @@ class MiniMaxProvider(SentimentProvider):
                         {"role": "user", "content": prompt}
                     ],
                     "temperature": 0.1,
-                    "max_tokens": 4096,
+                    "max_tokens": 8192,
                 },
             )
             resp.raise_for_status()
@@ -87,28 +89,45 @@ class MiniMaxProvider(SentimentProvider):
 
     def _parse_response(self, text: str, articles: List[Dict[str, Any]]) -> List[SentimentResult]:
         """Parse JSON response with robust extraction."""
-        # Extract JSON from potential markdown code blocks or extra text
         text = text.strip()
+
+        # Strip MiniMax M2.5 thinking block (starts with ◈ or similar)
+        # M2.5 may output <think>...</think> or ◈...◈ thinking before the JSON
+        thinking_end = -1
+        for tag in ["</think>", "◈\n", "```\n"]:
+            idx = text.rfind(tag)
+            if idx >= 0:
+                thinking_end = max(thinking_end, idx + len(tag))
+
+        if thinking_end > 0:
+            text = text[thinking_end:].strip()
+
         # Remove markdown code fences
         text = re.sub(r"```(?:json)?", "", text)
         text = text.strip()
 
-        # Find JSON bounds: first { or [ to last } or ]
-        start = max(text.find("{"), text.find("["))
-        end = text.rfind("}") if text.rfind("}") > text.rfind("]") else text.rfind("]")
-        if start < 0 or end <= start:
-            # Fallback: try to find any [ or ]
-            start = text.find("[")
-            end = text.rfind("]") + 1
-            if start < 0:
-                raise ValueError(f"Cannot find JSON in response: {text[:200]}")
+        # Find JSON array bounds (prefer [] since our format is an array)
+        start = text.find("[")
+        end = text.rfind("]")
+        if start < 0:
+            raise ValueError(f"Cannot find JSON array in response: {text[:200]}")
 
-        json_str = text[start:end + 1] if end > start else text[start:]
+        json_str = text[start:end + 1]
+
+        # Fix common MiniMax JSON malformations:
+        # Missing "d": key before empty string at end of object: ,"} → ,"d":""}
+        json_str = re.sub(r',"\s*\}', ',"d":""}', json_str)
+        # Trailing commas before ] or }
+        json_str = re.sub(r',\s*\]', ']', json_str)
+        json_str = re.sub(r',\s*\}', '}', json_str)
 
         try:
             items = json.loads(json_str)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"JSON parse error: {e}, text: {text[:500]}") from e
+        except json.JSONDecodeError:
+            # Fallback: extract individual JSON objects via regex (handles truncated output)
+            items = self._extract_individual_objects(json_str)
+            if not items:
+                raise
 
         # Map index -> result
         results = []
@@ -132,6 +151,23 @@ class MiniMaxProvider(SentimentProvider):
             ))
 
         return results
+
+    def _extract_individual_objects(self, json_str: str) -> list[dict]:
+        """Fallback: extract individual JSON objects from a possibly truncated array.
+
+        MiniMax M2.5 may produce truncated output (max_tokens exceeded).
+        This regex finds all complete {...} objects within the string.
+        """
+        items = []
+        # Match complete JSON objects with "i" key
+        for m in re.finditer(r'\{\s*"i"\s*:\s*\d+[^}]*\}', json_str, re.DOTALL):
+            try:
+                obj = json.loads(m.group())
+                if "i" in obj:
+                    items.append(obj)
+            except json.JSONDecodeError:
+                continue
+        return items
 
 
 def _extract_chinese_sentences(text: str, symbol: str) -> str:
@@ -168,7 +204,6 @@ def _extract_chinese_sentences(text: str, symbol: str) -> str:
 
     if is_chinese:
         # Split by Chinese sentence boundaries
-        import re
         sentences = re.split(r"(?<=[。！？])", text)
         relevant = []
         for sent in sentences:

@@ -18,7 +18,7 @@ from backend.ai.provider import UnifiedSentimentProvider
 
 logger = logging.getLogger(__name__)
 
-BATCH_SIZE = 50  # articles per API call
+BATCH_SIZE = 5  # articles per API call (very small batches for MiniMax M2.5 thinking-chain stability)
 
 # Chinese A-share stop words for keyword extraction
 _CHINESE_STOP_WORDS = {
