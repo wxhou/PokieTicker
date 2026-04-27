@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { useLang } from '../LanguageContext';
 import { t } from '../i18n';
@@ -41,6 +41,45 @@ function sortBySentiment(items: NewsItem[]): NewsItem[] {
     const sb = order[b.sentiment || 'neutral'] ?? 2;
     return sa - sb;
   });
+}
+
+interface NewsGroup {
+  primary: NewsItem;
+  duplicates: NewsItem[];
+}
+
+function titleSimilarity(a: string, b: string): number {
+  if (!a || !b) return 0;
+  // Extract meaningful Chinese segments (2+ chars)
+  const segsA = new Set(a.match(/[一-鿿]{2,}/g) || []);
+  const segsB = new Set(b.match(/[一-鿿]{2,}/g) || []);
+  if (segsA.size === 0 || segsB.size === 0) return 0;
+  let overlap = 0;
+  for (const s of segsA) if (segsB.has(s)) overlap++;
+  return overlap / Math.min(segsA.size, segsB.size);
+}
+
+function groupSimilarNews(items: NewsItem[]): NewsGroup[] {
+  const used = new Set<string>();
+  const groups: NewsGroup[] = [];
+  for (const item of items) {
+    if (used.has(item.news_id)) continue;
+    const group: NewsGroup = { primary: item, duplicates: [] };
+    used.add(item.news_id);
+    for (const other of items) {
+      if (used.has(other.news_id)) continue;
+      const sim = titleSimilarity(item.title, other.title);
+      // Also check key_discussion overlap for same-event detection
+      const discSim = (item.key_discussion && other.key_discussion)
+        ? titleSimilarity(item.key_discussion, other.key_discussion) : 0;
+      if (sim >= 0.5 || discSim >= 0.7) {
+        group.duplicates.push(other);
+        used.add(other.news_id);
+      }
+    }
+    groups.push(group);
+  }
+  return groups;
 }
 
 function pct(v: number | null) {
@@ -128,6 +167,18 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
   const hasAnyMatch = categorySet != null && news.some((item) => categorySet.has(item.news_id));
   const effectiveCategorySet = (categorySet != null && !hasAnyMatch) ? null : categorySet;
 
+  const newsGroups = useMemo(() => groupSimilarNews(news), [news]);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  function toggleGroup(newsId: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(newsId)) next.delete(newsId);
+      else next.add(newsId);
+      return next;
+    });
+  }
+
   if (!displayDate) {
     return (
       <div className="news-panel">
@@ -158,67 +209,91 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
         <div className="news-empty">{t('news.noNewsDate', lang)}</div>
       ) : (
         <div className="news-list" ref={listRef}>
-          {news.map((item) => {
+          {newsGroups.map((group) => {
+            const item = group.primary;
             const isDimmed = effectiveCategorySet != null && !effectiveCategorySet.has(item.news_id);
+            const hasDupes = group.duplicates.length > 0;
+            const isExpanded = expandedGroups.has(item.news_id);
             return (
-              <div
-                key={item.news_id}
-                data-news-id={item.news_id}
-                className={`news-card ${item.sentiment === 'positive' ? 'card-positive' : item.sentiment === 'negative' ? 'card-negative' : 'card-neutral'}${highlightedNewsId === item.news_id ? ' card-highlighted' : ''}${isDimmed ? ' card-dimmed' : ''}`}
-              >
-                <div className="news-card-top">
-                  <span className={`sentiment-dot ${item.sentiment || 'neutral'}`} />
-                  <a href={item.article_url} target="_blank" rel="noreferrer" className="news-title">
-                    {item.title}
-                  </a>
+              <div key={item.news_id} className="news-group">
+                <div
+                  data-news-id={item.news_id}
+                  className={`news-card ${item.sentiment === 'positive' ? 'card-positive' : item.sentiment === 'negative' ? 'card-negative' : 'card-neutral'}${highlightedNewsId === item.news_id ? ' card-highlighted' : ''}${isDimmed ? ' card-dimmed' : ''}`}
+                >
+                  <div className="news-card-top">
+                    <span className={`sentiment-dot ${item.sentiment || 'neutral'}`} />
+                    <a href={item.article_url} target="_blank" rel="noreferrer" className="news-title">
+                      {item.title}
+                    </a>
+                  </div>
+
+                  {item.image_url && (
+                    <div className="news-image-wrap">
+                      <img
+                        src={item.image_url}
+                        alt=""
+                        className="news-image"
+                        loading="lazy"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    </div>
+                  )}
+
+                  {item.key_discussion && (
+                    <p className="news-summary">{item.key_discussion}</p>
+                  )}
+
+                  {(item.reason_growth || item.reason_decrease) && (
+                    <div className="news-reasons">
+                      {item.reason_growth && (
+                        <div className="reason up">
+                          <span className="reason-icon">+</span> {item.reason_growth}
+                        </div>
+                      )}
+                      {item.reason_decrease && (
+                        <div className="reason down">
+                          <span className="reason-icon">-</span> {item.reason_decrease}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="news-card-footer">
+                    <span className="news-publisher">{item.publisher}</span>
+                    <div className="returns-chips">
+                      {item.ret_t1 != null && <span className="ret-chip">T+1 {pct(item.ret_t1)}</span>}
+                      {item.ret_t5 != null && <span className="ret-chip">T+5 {pct(item.ret_t5)}</span>}
+                      {hasDupes && (
+                        <button
+                          className="dedup-toggle"
+                          onClick={(e) => { e.stopPropagation(); toggleGroup(item.news_id); }}
+                        >
+                          {isExpanded ? '收起' : `${group.duplicates.length}${t('news.relatedCount', lang)}`}
+                        </button>
+                      )}
+                      {onFindSimilar && (
+                        <button
+                          className="find-similar-btn"
+                          onClick={(e) => { e.stopPropagation(); onFindSimilar(item.news_id); }}
+                        >
+                          {t('news.similarNews', lang)}
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-
-                {item.image_url && (
-                  <div className="news-image-wrap">
-                    <img
-                      src={item.image_url}
-                      alt=""
-                      className="news-image"
-                      loading="lazy"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  </div>
-                )}
-
-                {item.key_discussion && (
-                  <p className="news-summary">{item.key_discussion}</p>
-                )}
-
-                {(item.reason_growth || item.reason_decrease) && (
-                  <div className="news-reasons">
-                    {item.reason_growth && (
-                      <div className="reason up">
-                        <span className="reason-icon">+</span> {item.reason_growth}
+                {hasDupes && isExpanded && (
+                  <div className="dedup-list">
+                    {group.duplicates.map((dupe) => (
+                      <div key={dupe.news_id} className="dedup-card">
+                        <a href={dupe.article_url} target="_blank" rel="noreferrer" className="dedup-title">
+                          {dupe.title}
+                        </a>
+                        <span className="dedup-publisher">{dupe.publisher}</span>
                       </div>
-                    )}
-                    {item.reason_decrease && (
-                      <div className="reason down">
-                        <span className="reason-icon">-</span> {item.reason_decrease}
-                      </div>
-                    )}
+                    ))}
                   </div>
                 )}
-
-                <div className="news-card-footer">
-                  <span className="news-publisher">{item.publisher}</span>
-                  <div className="returns-chips">
-                    <span className="ret-chip">T+1 {pct(item.ret_t1)}</span>
-                    <span className="ret-chip">T+5 {pct(item.ret_t5)}</span>
-                    {onFindSimilar && (
-                      <button
-                        className="find-similar-btn"
-                        onClick={(e) => { e.stopPropagation(); onFindSimilar(item.news_id); }}
-                      >
-                        {t('news.similarNews', lang)}
-                      </button>
-                    )}
-                  </div>
-                </div>
               </div>
             );
           })}

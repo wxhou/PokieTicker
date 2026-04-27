@@ -86,7 +86,7 @@ const dict: Record<string, Record<Lang, string>> = {
   'feat.gap': { zh: '跳空', en: 'Gap' },
   'feat.ma5_vs_ma20': { zh: '5/20均线差', en: 'MA5/MA20' },
   'feat.rsi_14': { zh: 'RSI(14)', en: 'RSI(14)' },
-  'feat.day_of_week': { zh: '星期几', en: 'Day of Week' },
+  'feat.day_of_week': { zh: '周几效应', en: 'Weekday Effect' },
 
   // News Panel
   'news.title': { zh: '新闻', en: 'News' },
@@ -105,6 +105,7 @@ const dict: Record<string, Record<Lang, string>> = {
   'news.loading': { zh: '加载中...', en: 'Loading...' },
   'news.noNewsDate': { zh: '该日期暂无新闻', en: 'No news for this date' },
   'news.similarNews': { zh: '相似新闻', en: 'Similar News' },
+  'news.relatedCount': { zh: '条相关', en: ' related' },
   'news.articleCount': { zh: '条新闻', en: ' articles' },
   'news.collapse': { zh: '收起', en: 'Collapse' },
   'news.expand': { zh: '展开', en: 'Expand' },

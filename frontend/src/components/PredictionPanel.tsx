@@ -181,6 +181,7 @@ export default function PredictionPanel({ symbol }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(true);
+  const [activeTab, setActiveTab] = useState<'7' | '30'>('7');
 
   // Deep analysis state
   const [deepLoading, setDeepLoading] = useState<string | null>(null);
@@ -213,7 +214,11 @@ export default function PredictionPanel({ symbol }: Props) {
   const primary = primaryForecast
     ? (primaryForecast.prediction.t3 || primaryForecast.prediction.t1 || primaryForecast.prediction.t5)
     : null;
-  const isUp = primary?.direction === 'up';
+  // Derive overall direction from conclusion text, fallback to model direction
+  const conclusionDir = primaryForecast?.conclusion
+    ? (primaryForecast.conclusion.includes('看多') || primaryForecast.conclusion.includes('偏多') || primaryForecast.conclusion.toLowerCase().includes('bullish') ? 'up' : 'down')
+    : null;
+  const isUp = conclusionDir === 'up' || (conclusionDir === null && primary?.direction === 'up');
   const ns = primaryForecast?.news_summary;
 
   if (loading) {
@@ -290,25 +295,29 @@ export default function PredictionPanel({ symbol }: Props) {
             </div>
           )}
 
-          {/* 7D Forecast Section */}
-          {forecast7 && (
-            <ForecastSection
-              label={t('pred.section.7day', lang)}
-              forecast={forecast7}
-              symbol={symbol}
-              deepLoading={deepLoading}
-              deepResults={deepResults}
-              setDeepLoading={setDeepLoading}
-              setDeepResults={setDeepResults}
-              lang={lang}
-            />
+          {/* Tab switcher for 7D / 30D */}
+          {forecast7 && forecast30 && (
+            <div className="pred-tabs">
+              <button
+                className={`pred-tab ${activeTab === '7' ? 'active' : ''}`}
+                onClick={() => setActiveTab('7')}
+              >
+                {t('pred.section.7day', lang)}
+              </button>
+              <button
+                className={`pred-tab ${activeTab === '30' ? 'active' : ''}`}
+                onClick={() => setActiveTab('30')}
+              >
+                {t('pred.section.30day', lang)}
+              </button>
+            </div>
           )}
 
-          {/* 30D Forecast Section */}
-          {forecast30 && (
+          {/* Active forecast section */}
+          {(activeTab === '7' ? forecast7 : forecast30) && (
             <ForecastSection
-              label={t('pred.section.30day', lang)}
-              forecast={forecast30}
+              label={activeTab === '7' ? t('pred.section.7day', lang) : t('pred.section.30day', lang)}
+              forecast={activeTab === '7' ? forecast7! : forecast30!}
               symbol={symbol}
               deepLoading={deepLoading}
               deepResults={deepResults}
@@ -346,7 +355,11 @@ function ForecastSection({
   const t3 = forecast.prediction.t3;
   const t5 = forecast.prediction.t5;
   const primary = t3 || t1 || t5;
-  const isUp = primary?.direction === 'up';
+  // Use conclusion direction for consistent messaging
+  const conclusionDir = forecast.conclusion
+    ? (forecast.conclusion.includes('看多') || forecast.conclusion.includes('偏多') || forecast.conclusion.toLowerCase().includes('bullish') ? 'up' : 'down')
+    : null;
+  const isUp = conclusionDir === 'up' || (conclusionDir === null && primary?.direction === 'up');
   const ns = forecast.news_summary;
   const stats = forecast.similar_stats;
 
@@ -519,11 +532,25 @@ function ForecastSection({
 
 function PredictionCard({ label, pred, lang }: { label: string; pred: HorizonPrediction; lang: 'zh' | 'en' }) {
   const isUp = pred.direction === 'up';
-  const hasAccuracy = pred.model_accuracy != null && pred.baseline_accuracy != null;
-  const lift = hasAccuracy ? (pred.model_accuracy! - pred.baseline_accuracy!) : 0;
   const maxContrib = pred.top_drivers.length > 0
     ? Math.max(...pred.top_drivers.map((d) => d.contribution), 0.01)
     : 0.01;
+
+  function fmtDriverVal(d: Driver): string {
+    const name = d.name;
+    const v = d.value;
+    // Count-type features: show as integers
+    if (name.startsWith('n_') || name === 'has_news') return Math.round(v).toString();
+    // Ratio-type features: show as percentage
+    if (name.includes('ratio') || name.includes('score')) return (v * 100).toFixed(0) + '%';
+    // Day-of-week: show as weekday name
+    if (name === 'day_of_week') {
+      const days = lang === 'zh' ? ['一', '二', '三', '四', '五'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+      return '周' + days[Math.round(v) - 1] ?? days[3];
+    }
+    // Default: 2 decimals
+    return v.toFixed(2);
+  }
 
   return (
     <div className={`fc-pred-card ${isUp ? 'up' : 'down'}`}>
@@ -534,11 +561,6 @@ function PredictionCard({ label, pred, lang }: { label: string; pred: HorizonPre
         </span>
         <span className="fc-pred-conf">{(pred.confidence * 100).toFixed(0)}%</span>
       </div>
-      {hasAccuracy && (
-        <div className={`fc-pred-meta ${lift >= 0 ? 'fc-meta-positive' : 'fc-meta-negative'}`}>
-          {(pred.model_accuracy! * 100).toFixed(0)}% {t('pred.vs', lang)} {(pred.baseline_accuracy! * 100).toFixed(0)}% {t('pred.baseline', lang)} {lift >= 0 ? '+' : ''}{(lift * 100).toFixed(1)}pp
-        </div>
-      )}
       {pred.top_drivers.length > 0 && (
         <div className="fc-drivers">
           {pred.top_drivers.slice(0, 4).map((d) => (
@@ -551,7 +573,7 @@ function PredictionCard({ label, pred, lang }: { label: string; pred: HorizonPre
                 />
               </div>
               <span className="fc-driver-val">
-                {d.value.toFixed(2)} ({d.z_score > 0 ? '+' : ''}{d.z_score.toFixed(1)}σ)
+                {fmtDriverVal(d)}
               </span>
             </div>
           ))}

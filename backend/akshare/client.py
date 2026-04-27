@@ -453,13 +453,24 @@ def _get_stock_basic() -> List[Dict[str, str]]:
 
 
 def search_stocks(keyword: str) -> List[Dict[str, str]]:
-    """Search A-share stocks by name or code. Fast in-memory search."""
+    """Search A-share stocks by name, code, or pinyin. Fast in-memory search."""
+    from pypinyin import lazy_pinyin
+
     basic = _get_stock_basic()
     kw = keyword.strip().lower()
-    matches = [
-        s for s in basic
-        if kw in s["code"].lower() or kw in s["name"].lower()
-    ]
+
+    # Precompute pinyin for keyword (already latin chars → use as-is)
+    matches = []
+    for s in basic:
+        if kw in s["code"].lower() or kw in s["name"].lower():
+            matches.append(s)
+            continue
+        # Pinyin match: first-letter and full pinyin
+        py = "".join(lazy_pinyin(s["name"]))
+        first_letters = "".join(p[0] for p in lazy_pinyin(s["name"]))
+        if kw in py.lower() or kw in first_letters.lower():
+            matches.append(s)
+
     return matches[:20]
 
 

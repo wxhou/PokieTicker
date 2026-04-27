@@ -698,6 +698,69 @@ body {
   color: var(--accent-gold);
 }
 
+/* News dedup */
+.news-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.dedup-toggle {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-gold);
+  transition: all 0.15s;
+}
+
+.dedup-toggle:hover {
+  border-color: var(--accent-gold);
+  background: rgba(201, 169, 110, 0.08);
+}
+
+.dedup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0 4px 16px;
+  border-left: 2px solid var(--border-light);
+  margin-left: 12px;
+}
+
+.dedup-card {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.dedup-card:hover {
+  background: rgba(201, 169, 110, 0.06);
+}
+
+.dedup-title {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  text-decoration: none;
+  flex: 1;
+}
+
+.dedup-title:hover {
+  color: var(--accent-gold);
+}
+
+.dedup-publisher {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* ===== Range Analysis Panel ===== */
 .range-clear-btn {
   margin-left: auto;
@@ -1862,34 +1925,36 @@ body {
 .category-tag {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 10px 3px 6px;
-  border: none;
-  background: transparent;
-  border-radius: 0;
+  gap: 6px;
+  padding: 5px 12px 5px 8px;
+  border: 1px solid transparent;
+  background: var(--bg-card);
+  border-radius: 6px;
   cursor: pointer;
   color: var(--text-secondary);
-  transition: color 0.15s;
+  transition: all 0.15s;
   white-space: nowrap;
   font-family: var(--font-body);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.3px;
 }
 
 .category-tag:hover {
   color: var(--text-primary);
+  border-color: var(--border);
 }
 
 .category-tag-active {
   color: var(--text-primary);
-  background: transparent;
+  background: var(--bg-elevated);
+  border-color: var(--tag-color, var(--accent-gold));
   font-weight: 700;
 }
 
 .category-tag-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
