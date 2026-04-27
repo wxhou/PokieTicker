@@ -59,6 +59,7 @@ CLAUDE.md
 .codebuddy/
 .gstack/
 .playwright-mcp/
+playwright/
 
 # Test results & screenshots
 frontend/test-results/
