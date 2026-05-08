@@ -223,7 +223,7 @@ function App() {
         <NewsPanel
           symbol={selectedSymbol}
           hoveredDate={effectiveDate}
-          onFindSimilar={(_newsId: string) => {
+          onFindSimilar={() => {
             if (effectiveDate) handleDayClick(effectiveDate);
           }}
           highlightedNewsId={selectedArticle?.newsId || null}

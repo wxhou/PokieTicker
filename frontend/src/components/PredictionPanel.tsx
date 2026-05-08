@@ -456,7 +456,7 @@ function ForecastSection({
                         .then((res) => {
                           setDeepResults((prev) => ({ ...prev, [article.news_id]: res.data }));
                         })
-                        .catch(() => {})
+                        .catch(() => setDeepLoading(null))
                         .finally(() => setDeepLoading(null));
                     }}
                   >

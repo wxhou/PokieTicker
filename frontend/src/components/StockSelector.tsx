@@ -40,7 +40,7 @@ export default function StockSelector({ activeTickers, selectedSymbol, onSelect,
         }
         setTickerNames(map);
       })
-      .catch(() => {});
+      .catch(console.error);
   }, []);
 
   useEffect(() => {

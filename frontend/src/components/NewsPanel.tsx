@@ -123,7 +123,10 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
           setNews(sortBySentiment(res.data));
           setDisplayDate(hoveredDate);
         })
-        .catch(() => {})
+        .catch(() => {
+          setNews([]);
+          setDisplayDate(hoveredDate);
+        })
         .finally(() => setLoading(false));
     }, 120);
   }, [symbol, hoveredDate]);
@@ -147,7 +150,7 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
           setDisplayDate(latestDate);
         }
       })
-      .catch(() => {});
+      .catch(console.error);
   }, [symbol]);
 
   // Auto-scroll to highlighted article
