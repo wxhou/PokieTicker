@@ -46,6 +46,7 @@ interface ArticleSelection {
 
 interface Props {
   symbol: string;
+  lang?: 'zh' | 'en';
   lockedNewsId?: string | null;
   highlightedArticleIds?: string[] | null;
   highlightColor?: string | null;
@@ -99,7 +100,7 @@ const PERIOD_DAYS: Record<Period, number> = {
 const PERIOD_LABELS_ZH: Record<Period, string> = { '1W': '1周', '1M': '1月', '3M': '3月', '1Y': '1年', 'ALL': '全部' };
 const PERIOD_LABELS_EN: Record<Period, string> = { '1W': '1W', '1M': '1M', '3M': '3M', '1Y': '1Y', 'ALL': 'All' };
 
-export default function CandlestickChart({ symbol, lockedNewsId, highlightedArticleIds, highlightColor, onHover, onRangeSelect, onArticleSelect, onDayClick }: Props) {
+export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, highlightedArticleIds, highlightColor, onHover, onRangeSelect, onArticleSelect, onDayClick }: Props) {
   const { lang } = useLang();
   const svgRef = useRef<SVGSVGElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -346,7 +347,13 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
     // X Axis (at the very bottom)
     g.append('g')
       .attr('transform', `translate(0,${height})`)
-      .call(d3.axisBottom(x).ticks(8).tickFormat(d3.timeFormat('%b %y') as any))
+      .call(d3.axisBottom(x).ticks(8).tickFormat((d: Date | d3.NumberValue) => {
+          const dt = d as Date;
+          if (lang === 'zh') {
+            return `${dt.getMonth() + 1}月`;
+          }
+          return d3.timeFormat('%b %y')(dt);
+        } as any))
       .selectAll('text')
       .style('font-size', '12px')
       .style('fill', '#5c5750');

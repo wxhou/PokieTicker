@@ -62,11 +62,13 @@ function App() {
   // Chart area ref for popup positioning
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const [chartRect, setChartRect] = useState<DOMRect | undefined>(undefined);
+  const [connError, setConnError] = useState(false);
 
   useEffect(() => {
     axios
       .get('/api/stocks')
       .then((res) => {
+        setConnError(false);
         const tickers = res.data
           .filter((t: any) => t.last_ohlc_fetch)
           .map((t: any) => t.symbol);
@@ -82,7 +84,7 @@ function App() {
           localStorage.setItem(LAST_SYMBOL_KEY, initial);
         }
       })
-      .catch(console.error);
+      .catch(() => setConnError(true));
   }, []);
 
   // Update chartRect when range is selected (for popup positioning)
@@ -302,10 +304,13 @@ function App() {
           </div>
         ) : (
         <div className="chart-area" ref={chartAreaRef}>
-          {selectedSymbol ? (
+          {connError ? (
+            <div className="chart-placeholder">{t('chart.connError', lang)}</div>
+          ) : selectedSymbol ? (
             <>
               <CandlestickChart
                 symbol={selectedSymbol}
+                lang={lang}
                 lockedNewsId={lockedArticle?.newsId ?? null}
                 highlightedArticleIds={activeCategoryIds.length > 0 ? activeCategoryIds : null}
                 highlightColor={activeCategoryColor}

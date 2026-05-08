@@ -159,6 +159,7 @@ const dict: Record<string, Record<Lang, string>> = {
   'chart.loading': { zh: '加载中...', en: 'Loading...' },
   'chart.unknown': { zh: '未知', en: 'unknown' },
   'chart.placeholder': { zh: '请选择股票查看K线图', en: 'Select a stock to view chart' },
+  'chart.connError': { zh: '服务连接失败，请检查后端是否运行', en: 'Server connection failed — is the backend running?' },
 
   // OHLC labels
   'ohlc.open': { zh: '开', en: 'O' },
