@@ -56,6 +56,7 @@ export default function RangeNewsPanel({ symbol, startDate, endDate, priceChange
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setData(null);
     setShowAll(false);
@@ -102,7 +103,7 @@ export default function RangeNewsPanel({ symbol, startDate, endDate, priceChange
                 ▲ {t('news.bullish', lang)} ({data.top_bullish.length})
               </div>
               {data.top_bullish.map((item) => (
-                <RangeNewsCard key={item.news_id} item={item} lang={lang} />
+                <RangeNewsCard key={item.news_id} item={item} />
               ))}
             </div>
           )}
@@ -114,7 +115,7 @@ export default function RangeNewsPanel({ symbol, startDate, endDate, priceChange
                 ▼ {t('news.bearish', lang)} ({data.top_bearish.length})
               </div>
               {data.top_bearish.map((item) => (
-                <RangeNewsCard key={item.news_id} item={item} lang={lang} />
+                <RangeNewsCard key={item.news_id} item={item} />
               ))}
             </div>
           )}
@@ -130,7 +131,7 @@ export default function RangeNewsPanel({ symbol, startDate, endDate, priceChange
                 <span className="range-news-all-arrow">{showAll ? '▲' : '▼'}</span>
               </button>
               {showAll && data.articles.map((item) => (
-                <RangeNewsCard key={item.news_id} item={item} lang={lang} />
+                <RangeNewsCard key={item.news_id} item={item} />
               ))}
             </div>
           )}
@@ -148,7 +149,7 @@ export default function RangeNewsPanel({ symbol, startDate, endDate, priceChange
   );
 }
 
-function RangeNewsCard({ item, lang }: { item: NewsItem; lang: 'zh' | 'en' }) {
+function RangeNewsCard({ item }: { item: NewsItem }) {
   const sentiment = item.sentiment || 'neutral';
   const borderClass = sentiment === 'positive' ? 'card-positive' : sentiment === 'negative' ? 'card-negative' : 'card-neutral';
 

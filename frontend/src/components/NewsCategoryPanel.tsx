@@ -48,6 +48,7 @@ export default function NewsCategoryPanel({ symbol, activeCategory, onCategoryCh
   }, [symbol]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSentimentFilter('all');
   }, [activeCategory]);
 

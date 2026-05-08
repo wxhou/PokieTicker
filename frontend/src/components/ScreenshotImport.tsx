@@ -82,8 +82,8 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
         setSelected(new Set(data.holdings.map(h => h.stock_code)));
         setPhase('results');
       }
-    } catch (e: any) {
-      const status = e.response?.status;
+    } catch (e: unknown) {
+      const status = (e as { response?: { status?: number } })?.response?.status;
       if (status === 422) setErrorMsg(t('si.invalidFormat', lang));
       else if (status === 413) setErrorMsg(t('si.fileTooLarge', lang));
       else setErrorMsg(t('si.aiUnavailable', lang));

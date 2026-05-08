@@ -20,10 +20,10 @@ interface Portfolio {
   holdings: Holding[];
 }
 
-function extractError(e: any, fallback: string): string {
-  const d = e.response?.data;
-  if (Array.isArray(d) && d.length > 0) return d[0].msg || fallback;
-  if (typeof d?.detail === 'string') return d.detail;
+function extractError(e: unknown, fallback: string): string {
+  const d = (e as { response?: { data?: { detail?: string } | { msg?: string }[] } })?.response?.data;
+  if (Array.isArray(d) && d.length > 0) return (d[0] as { msg?: string }).msg || fallback;
+  if (typeof (d as { detail?: string })?.detail === 'string') return (d as { detail: string }).detail;
   return fallback;
 }
 
@@ -45,17 +45,6 @@ export default function Portfolio({ onBack }: Props) {
   const [error, setError] = useState('');
   const [showScreenshot, setShowScreenshot] = useState(false);
 
-  useEffect(() => {
-    const savedToken = localStorage.getItem('zx_auth_token');
-    if (savedToken) {
-      setToken(savedToken);
-      loadPortfolios(savedToken);
-    } else {
-      setShowLogin(true);
-      setLoading(false);
-    }
-  }, []);
-
   async function loadPortfolios(t: string) {
     setLoading(true);
     try {
@@ -63,8 +52,8 @@ export default function Portfolio({ onBack }: Props) {
         headers: { Authorization: `Bearer ${t}` },
       });
       setPortfolios(res.data);
-    } catch (e: any) {
-      if (e.response?.status === 401) {
+    } catch (e: unknown) {
+      if ((e as { response?: { status?: number } })?.response?.status === 401) {
         localStorage.removeItem('zx_auth_token');
         setToken(null);
         setShowLogin(true);
@@ -74,6 +63,18 @@ export default function Portfolio({ onBack }: Props) {
     }
     setLoading(false);
   }
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem('zx_auth_token');
+    if (savedToken) {
+      setToken(savedToken);
+      loadPortfolios(savedToken);
+    } else {
+      setShowLogin(true);
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -85,7 +86,7 @@ export default function Portfolio({ onBack }: Props) {
       setToken(tk);
       setShowLogin(false);
       loadPortfolios(tk);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setAuthError(extractError(e, t('portfolio.loginFail', lang)));
     }
   }
@@ -96,7 +97,7 @@ export default function Portfolio({ onBack }: Props) {
     try {
       await axios.post('/api/auth/register', { email, password });
       await handleLogin(e);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setAuthError(extractError(e, t('portfolio.signUpFail', lang)));
     }
   }
@@ -116,7 +117,7 @@ export default function Portfolio({ onBack }: Props) {
       });
       setPortfolios([res.data, ...portfolios]);
       setNewName('');
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError(extractError(e, t('portfolio.createFail', lang)));
     }
   }
@@ -128,7 +129,7 @@ export default function Portfolio({ onBack }: Props) {
         headers: { Authorization: `Bearer ${token}` },
       });
       setPortfolios(portfolios.filter(p => p.id !== id));
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError(extractError(e, t('portfolio.deleteFail', lang)));
     }
   }
@@ -142,7 +143,7 @@ export default function Portfolio({ onBack }: Props) {
       });
       loadPortfolios(token);
       setAddCode(prev => ({ ...prev, [portfolioId]: '' }));
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError(extractError(e, t('portfolio.addFail', lang)));
     }
   }
@@ -157,7 +158,7 @@ export default function Portfolio({ onBack }: Props) {
         ...p,
         holdings: p.holdings.filter(h => h.id !== holdingId),
       })));
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError(extractError(e, t('portfolio.removeFail', lang)));
     }
   }

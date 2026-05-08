@@ -189,6 +189,7 @@ export default function PredictionPanel({ symbol }: Props) {
 
   useEffect(() => {
     if (!symbol) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError('');
     Promise.all([
@@ -546,7 +547,7 @@ function PredictionCard({ label, pred, lang }: { label: string; pred: HorizonPre
     // Day-of-week: show as weekday name
     if (name === 'day_of_week') {
       const days = lang === 'zh' ? ['一', '二', '三', '四', '五'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-      return '周' + days[Math.round(v) - 1] ?? days[3];
+      return '周' + (days[Math.round(v) - 1] ?? days[3]);
     }
     // Default: 2 decimals
     return v.toFixed(2);

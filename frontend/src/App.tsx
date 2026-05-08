@@ -69,9 +69,9 @@ function App() {
       .get('/api/stocks')
       .then((res) => {
         setConnError(false);
-        const tickers = res.data
-          .filter((t: any) => t.last_ohlc_fetch)
-          .map((t: any) => t.symbol);
+        const tickers = (res.data as { symbol: string; last_ohlc_fetch: boolean }[])
+          .filter((t) => t.last_ohlc_fetch)
+          .map((t) => t.symbol);
         setActiveTickers(tickers);
         // Priority: URL param > localStorage > first ticker
         const urlSymbol = new URLSearchParams(window.location.search).get('symbol');

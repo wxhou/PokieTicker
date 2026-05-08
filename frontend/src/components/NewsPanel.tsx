@@ -134,6 +134,7 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
   // Load latest news on symbol change
   useEffect(() => {
     cacheRef.current.clear();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNews([]);
     setDisplayDate(null);
 

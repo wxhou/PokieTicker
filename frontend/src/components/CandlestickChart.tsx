@@ -273,7 +273,24 @@ export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, hi
 
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const data = rawData.map((d, i) => ({
+    interface ChartRow {
+      date: Date;
+      dateStr: string;
+      open: number;
+      high: number;
+      low: number;
+      close: number;
+      volume: number;
+      change: number;
+      limitUp: number | null;
+      limitDown: number | null;
+      isLimitUp: boolean;
+      isLimitDown: boolean;
+      ma5?: number;
+      ma20?: number;
+    }
+
+    const data: ChartRow[] = rawData.map((d, i) => ({
       date: new Date(d.date),
       dateStr: d.date,
       open: +d.open,
@@ -282,7 +299,6 @@ export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, hi
       close: +d.close,
       volume: +d.volume,
       change: i > 0 ? ((+d.close - +rawData[i - 1].close) / +rawData[i - 1].close) * 100 : 0,
-      // A-share limit-up/down: regular stocks ±10%, ST stocks ±5%
       limitUp: i > 0 ? +rawData[i - 1].close * 1.095 : null,
       limitDown: i > 0 ? +rawData[i - 1].close * 0.905 : null,
       isLimitUp: i > 0 ? +d.high >= +rawData[i - 1].close * 1.095 : false,
@@ -294,12 +310,12 @@ export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, hi
       if (i >= 4) {
         let sum = 0;
         for (let j = i - 4; j <= i; j++) sum += data[j].close;
-        (data[i] as any).ma5 = sum / 5;
+        data[i].ma5 = sum / 5;
       }
       if (i >= 19) {
         let sum = 0;
         for (let j = i - 19; j <= i; j++) sum += data[j].close;
-        (data[i] as any).ma20 = sum / 20;
+        data[i].ma20 = sum / 20;
       }
     }
 
@@ -347,13 +363,13 @@ export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, hi
     // X Axis (at the very bottom)
     g.append('g')
       .attr('transform', `translate(0,${height})`)
-      .call(d3.axisBottom(x).ticks(8).tickFormat((d: Date | d3.NumberValue) => {
-          const dt = d as Date;
+      .call(d3.axisBottom(x).ticks(8).tickFormat((d) => {
+          const dt = d instanceof Date ? d : new Date(Number(d));
           if (lang === 'zh') {
             return `${dt.getMonth() + 1}月`;
           }
           return d3.timeFormat('%b %y')(dt);
-        } as any))
+        }))
       .selectAll('text')
       .style('font-size', '12px')
       .style('fill', '#5c5750');
@@ -395,10 +411,10 @@ export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, hi
         : 'rgba(45, 147, 108, 0.35)');
 
     // --- MA lines ---
-    const maLine = (field: string) => d3.line<typeof data[0]>()
+    const maLine = (field: 'ma5' | 'ma20') => d3.line<ChartRow>()
       .x((d) => x(d.date))
-      .y((d: any) => y(d[field]))
-      .defined((d: any) => d[field] != null);
+      .y((d) => y(d[field] ?? 0))
+      .defined((d) => d[field] != null);
 
     g.append('path')
       .datum(data)
@@ -406,7 +422,7 @@ export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, hi
       .attr('stroke', '#c9a96e')
       .attr('stroke-width', 1)
       .attr('stroke-opacity', 0.7)
-      .attr('d', maLine('ma5'));
+      .attr('d', maLine('ma5') as string | null);
 
     g.append('path')
       .datum(data)
@@ -414,7 +430,7 @@ export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, hi
       .attr('stroke', '#5c5750')
       .attr('stroke-width', 1)
       .attr('stroke-opacity', 0.6)
-      .attr('d', maLine('ma20'));
+      .attr('d', maLine('ma20') as string | null);
 
     // Candlesticks
     const candles = g.selectAll('.candle').data(data).enter().append('g').attr('class', 'candle');
@@ -593,12 +609,12 @@ export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, hi
           return x0 > mouseX + searchRadius || x1 < mouseX - searchRadius ||
                  y0 > mouseY + searchRadius || y1 < mouseY - searchRadius;
         }
-        let leaf: typeof node | undefined = node;
+        let leaf: typeof node & { next?: typeof node } | undefined = node as typeof node & { next?: typeof node };
         while (leaf) {
           const p = leaf.data;
           // Skip particles hidden by category filter
           if (hlSet != null && !hlSet.has(p.id) && p.id !== locked) {
-            leaf = (leaf as any).next;
+            leaf = leaf.next;
             continue;
           }
           const dx = p.px - mouseX;
@@ -608,7 +624,7 @@ export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, hi
             closestDist = dist;
             closest = p;
           }
-          leaf = (leaf as any).next;
+          leaf = leaf.next;
         }
         return false;
       });
