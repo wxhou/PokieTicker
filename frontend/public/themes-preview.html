@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>涨讯 — 主题预览</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --font-display: 'Noto Serif SC', 'Songti SC', serif;
+    --font-body: 'PingFang SC', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: #0c0b0a;
+    color: #eae5db;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ===== Header ===== */
+  .page-header {
+    text-align: center;
+    padding: 60px 20px 20px;
+  }
+  .page-header h1 {
+    font-family: var(--font-display);
+    font-size: 42px;
+    font-weight: 900;
+    color: #c9392c;
+    letter-spacing: 8px;
+    margin-bottom: 12px;
+  }
+  .page-header p {
+    font-size: 16px;
+    color: #6b655c;
+    letter-spacing: 2px;
+  }
+
+  /* ===== Theme Grid ===== */
+  .themes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    padding: 40px 40px 60px;
+    max-width: 1400px;
+    width: 100%;
+  }
+
+  /* ===== Theme Card ===== */
+  .theme-card {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid #2e2b27;
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s;
+  }
+  .theme-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  }
+
+  .theme-badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .theme-preview {
+    height: 320px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .theme-info {
+    padding: 24px;
+  }
+  .theme-name {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    margin-bottom: 6px;
+  }
+  .theme-subtitle {
+    font-size: 13px;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+  .theme-desc {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #958e84;
+    margin-bottom: 20px;
+  }
+
+  /* Color swatches */
+  .swatches {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+  }
+  .swatch-label {
+    font-size: 10px;
+    color: #6b655c;
+    margin-top: 4px;
+    text-align: center;
+  }
+  .swatch-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .theme-features {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .theme-features li {
+    font-size: 13px;
+    color: #958e84;
+    padding-left: 16px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .theme-features li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 7px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+  }
+
+  /* ===== Preview Mock UI ===== */
+  .mock-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    font-size: 11px;
+  }
+  .mock-brand {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 14px;
+    letter-spacing: 2px;
+  }
+  .mock-divider {
+    width: 1px;
+    height: 14px;
+  }
+  .mock-sub {
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .mock-chart {
+    padding: 0 14px;
+    height: 180px;
+    position: relative;
+  }
+  .mock-chart svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .mock-ohlc {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    font-size: 9px;
+    font-family: var(--font-mono);
+  }
+  .mock-ohlc-label {
+    opacity: 0.4;
+  }
+  .mock-ohlc-val {
+    font-weight: 500;
+  }
+  .mock-ohlc-change {
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+    font-size: 9px;
+  }
+
+  .mock-footer {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 14px;
+    font-size: 9px;
+    opacity: 0.3;
+  }
+
+  /* ============================================================
+     THEME 1: 墨石 (Obsidian) — warm dark
+     ============================================================ */
+  .theme-obsidian .theme-preview { background: #0c0b0a; }
+  .theme-obsidian .theme-badge { background: rgba(201,169,110,0.12); color: #c9a96e; }
+  .theme-obsidian .theme-name { color: #eae5db; }
+  .theme-obsidian .theme-subtitle { color: #c9a96e; }
+  .theme-obsidian .theme-info { background: #141310; }
+  .theme-obsidian .theme-features li::before { background: #c9a96e; }
+
+  .theme-obsidian .mock-header { background: #0c0b0a; border-bottom: 1px solid #1a1816; }
+  .theme-obsidian .mock-brand { color: #c9392c; }
+  .theme-obsidian .mock-divider { background: #2e2b27; }
+  .theme-obsidian .mock-sub { color: #6b655c; }
+  .theme-obsidian .mock-ohlc { border-bottom: 1px solid #1a1816; }
+  .theme-obsidian .mock-ohlc-label { color: #6b655c; }
+  .theme-obsidian .mock-ohlc-val { color: #eae5db; }
+  .theme-obsidian .mock-ohlc-change { background: rgba(230,57,70,0.12); color: #e63946; }
+  .theme-obsidian .mock-footer { color: #eae5db; border-top: 1px solid #1a1816; }
+
+  /* ============================================================
+     THEME 2: 宣纸 (Parchment) — warm light
+     ============================================================ */
+  .theme-parchment .theme-preview { background: #f5f0e8; }
+  .theme-parchment .theme-badge { background: rgba(180,120,60,0.12); color: #a07030; }
+  .theme-parchment .theme-name { color: #2c2418; }
+  .theme-parchment .theme-subtitle { color: #a07030; }
+  .theme-parchment .theme-info { background: #ebe5da; }
+  .theme-parchment .theme-desc { color: #7a6e5e; }
+  .theme-parchment .theme-features li { color: #7a6e5e; }
+  .theme-parchment .theme-features li::before { background: #a07030; }
+
+  .theme-parchment .mock-header { background: #f5f0e8; border-bottom: 1px solid #ddd5c8; }
+  .theme-parchment .mock-brand { color: #c9392c; }
+  .theme-parchment .mock-divider { background: #c8bfb0; }
+  .theme-parchment .mock-sub { color: #8a7e6e; }
+  .theme-parchment .mock-ohlc { border-bottom: 1px solid #ddd5c8; }
+  .theme-parchment .mock-ohlc-label { color: #8a7e6e; }
+  .theme-parchment .mock-ohlc-val { color: #2c2418; }
+  .theme-parchment .mock-ohlc-change { background: rgba(230,57,70,0.1); color: #e63946; }
+  .theme-parchment .mock-footer { color: #2c2418; border-top: 1px solid #ddd5c8; }
+
+  /* ============================================================
+     THEME 3: 碧渊 (Deep Azure) — cool dark blue
+     ============================================================ */
+  .theme-azure .theme-preview { background: #080c14; }
+  .theme-azure .theme-badge { background: rgba(108,180,238,0.12); color: #6cb4ee; }
+  .theme-azure .theme-name { color: #e0e8f0; }
+  .theme-azure .theme-subtitle { color: #6cb4ee; }
+  .theme-azure .theme-info { background: #0c1018; }
+  .theme-azure .theme-desc { color: #7888a0; }
+  .theme-azure .theme-features li { color: #7888a0; }
+  .theme-azure .theme-features li::before { background: #6cb4ee; }
+
+  .theme-azure .mock-header { background: #080c14; border-bottom: 1px solid #141c28; }
+  .theme-azure .mock-brand { color: #6cb4ee; }
+  .theme-azure .mock-divider { background: #1e2a3a; }
+  .theme-azure .mock-sub { color: #4a5a70; }
+  .theme-azure .mock-ohlc { border-bottom: 1px solid #141c28; }
+  .theme-azure .mock-ohlc-label { color: #4a5a70; }
+  .theme-azure .mock-ohlc-val { color: #e0e8f0; }
+  .theme-azure .mock-ohlc-change { background: rgba(108,180,238,0.12); color: #6cb4ee; }
+  .theme-azure .mock-footer { color: #e0e8f0; border-top: 1px solid #141c28; }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 900px) {
+    .themes {
+      grid-template-columns: 1fr;
+      max-width: 480px;
+      padding: 24px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>涨讯</h1>
+  <p>A股事件驱动分析 — 主题设计</p>
+</header>
+
+<section class="themes">
+
+  <!-- ═══ Theme 1: 墨石 ═══ -->
+  <div class="theme-card theme-obsidian">
+    <div class="theme-preview">
+      <div class="mock-header">
+        <span class="mock-brand">涨讯</span>
+        <span class="mock-divider"></span>
+        <span class="mock-sub">A股事件驱动</span>
+      </div>
+      <div class="mock-ohlc">
+        <span class="mock-ohlc-label">开</span><span class="mock-ohlc-val">26.04</span>
+        <span class="mock-ohlc-label">高</span><span class="mock-ohlc-val">26.88</span>
+        <span class="mock-ohlc-label">低</span><span class="mock-ohlc-val">25.91</span>
+        <span class="mock-ohlc-label">收</span><span class="mock-ohlc-val">26.52</span>
+        <span class="mock-ohlc-change">+2.35%</span>
+      </div>
+      <div class="mock-chart">
+        <svg viewBox="0 0 380 170">
+          <!-- Grid -->
+          <line x1="0" y1="42" x2="380" y2="42" stroke="#1e1c19" stroke-width="0.5" stroke-dasharray="2,4"/>
+          <line x1="0" y1="85" x2="380" y2="85" stroke="#1e1c19" stroke-width="0.5" stroke-dasharray="2,4"/>
+          <line x1="0" y1="128" x2="380" y2="128" stroke="#1e1c19" stroke-width="0.5" stroke-dasharray="2,4"/>
+          <!-- MA5 glow -->
+          <path d="M20,110 Q60,95 100,85 Q140,70 180,60 Q220,55 260,45 Q300,50 340,40" fill="none" stroke="rgba(201,169,110,0.15)" stroke-width="5"/>
+          <!-- MA5 line -->
+          <path d="M20,110 Q60,95 100,85 Q140,70 180,60 Q220,55 260,45 Q300,50 340,40" fill="none" stroke="#c9a96e" stroke-width="1.5" stroke-opacity="0.8"/>
+          <!-- Candles - red (up) -->
+          <rect x="18" y="100" width="8" height="25" rx="1.5" fill="#e63946"/>
+          <line x1="22" y1="90" x2="22" y2="132" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <rect x="58" y="85" width="8" height="18" rx="1.5" fill="#e63946"/>
+          <line x1="62" y1="75" x2="62" y2="110" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <rect x="98" y="78" width="8" height="22" rx="1.5" fill="#e63946"/>
+          <line x1="102" y1="68" x2="102" y2="105" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <!-- Green (down) -->
+          <rect x="138" y="65" width="8" height="20" rx="1.5" fill="#2d936c"/>
+          <line x1="142" y1="58" x2="142" y2="92" stroke="rgba(45,147,108,0.5)" stroke-width="1"/>
+          <!-- Red -->
+          <rect x="178" y="50" width="8" height="28" rx="1.5" fill="#e63946"/>
+          <line x1="182" y1="40" x2="182" y2="85" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <rect x="218" y="42" width="8" height="22" rx="1.5" fill="#e63946"/>
+          <line x1="222" y1="35" x2="222" y2="70" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <!-- Green -->
+          <rect x="258" y="38" width="8" height="18" rx="1.5" fill="#2d936c"/>
+          <line x1="262" y1="30" x2="262" y2="62" stroke="rgba(45,147,108,0.5)" stroke-width="1"/>
+          <!-- Red strong (with glow) -->
+          <rect x="298" y="32" width="8" height="30" rx="1.5" fill="#e63946" filter="url(#glow)"/>
+          <line x1="302" y1="22" x2="302" y2="68" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <rect x="338" y="28" width="8" height="18" rx="1.5" fill="#e63946"/>
+          <line x1="342" y1="20" x2="342" y2="52" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <!-- Volume -->
+          <rect x="18" y="155" width="8" height="12" rx="1" fill="url(#vgu)"/>
+          <rect x="58" y="153" width="8" height="14" rx="1" fill="url(#vgu)"/>
+          <rect x="98" y="150" width="8" height="17" rx="1" fill="url(#vgu)"/>
+          <rect x="138" y="152" width="8" height="15" rx="1" fill="url(#vgd)"/>
+          <rect x="178" y="148" width="8" height="19" rx="1" fill="url(#vgu)"/>
+          <rect x="218" y="151" width="8" height="16" rx="1" fill="url(#vgu)"/>
+          <rect x="258" y="154" width="8" height="13" rx="1" fill="url(#vgd)"/>
+          <rect x="298" y="145" width="8" height="22" rx="1" fill="url(#vgu)"/>
+          <rect x="338" y="150" width="8" height="17" rx="1" fill="url(#vgu)"/>
+          <defs>
+            <filter id="glow"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <linearGradient id="vgu" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(230,57,70,0.4)"/><stop offset="100%" stop-color="rgba(230,57,70,0.05)"/></linearGradient>
+            <linearGradient id="vgd" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(45,147,108,0.4)"/><stop offset="100%" stop-color="rgba(45,147,108,0.05)"/></linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="mock-footer">
+        <span>MA5: 26.18 &nbsp; MA20: 25.42</span>
+        <span>成交量: 1.2亿</span>
+      </div>
+    </div>
+    <div class="theme-info">
+      <span class="theme-badge">默认推荐</span>
+      <div class="theme-name">墨石</div>
+      <div class="theme-subtitle">OBSIDIAN</div>
+      <p class="theme-desc">
+        温暖的炭黑色调，如墨石般沉稳内敛。金色高亮点缀其间，
+        呈现杂志般的编辑质感。适合长时间盯盘，减少视觉疲劳。
+      </p>
+      <div class="swatches">
+        <div class="swatch-group"><div class="swatch" style="background:#0c0b0a"></div><div class="swatch-label">底色</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#1c1a17"></div><div class="swatch-label">卡片</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#eae5db"></div><div class="swatch-label">文字</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#c9a96e"></div><div class="swatch-label">高亮</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#e63946"></div><div class="swatch-label">涨</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#2d936c"></div><div class="swatch-label">跌</div></div>
+      </div>
+      <ul class="theme-features">
+        <li>温暖中性色板，长时间使用不疲劳</li>
+        <li>金色高亮突出关键数据</li>
+        <li>K线渐变辉光，大阳大阴自动发光</li>
+        <li>MA 线带模糊阴影，层次分明</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Theme 2: 宣纸 ═══ -->
+  <div class="theme-card theme-parchment">
+    <div class="theme-preview">
+      <div class="mock-header">
+        <span class="mock-brand">涨讯</span>
+        <span class="mock-divider"></span>
+        <span class="mock-sub">A股事件驱动</span>
+      </div>
+      <div class="mock-ohlc">
+        <span class="mock-ohlc-label">开</span><span class="mock-ohlc-val">26.04</span>
+        <span class="mock-ohlc-label">高</span><span class="mock-ohlc-val">26.88</span>
+        <span class="mock-ohlc-label">低</span><span class="mock-ohlc-val">25.91</span>
+        <span class="mock-ohlc-label">收</span><span class="mock-ohlc-val">26.52</span>
+        <span class="mock-ohlc-change">+2.35%</span>
+      </div>
+      <div class="mock-chart">
+        <svg viewBox="0 0 380 170">
+          <line x1="0" y1="42" x2="380" y2="42" stroke="#ddd5c8" stroke-width="0.5"/>
+          <line x1="0" y1="85" x2="380" y2="85" stroke="#ddd5c8" stroke-width="0.5"/>
+          <line x1="0" y1="128" x2="380" y2="128" stroke="#ddd5c8" stroke-width="0.5"/>
+          <!-- MA5 -->
+          <path d="M20,110 Q60,95 100,85 Q140,70 180,60 Q220,55 260,45 Q300,50 340,40" fill="none" stroke="#a07030" stroke-width="1.5" stroke-opacity="0.6"/>
+          <!-- Candles -->
+          <rect x="18" y="100" width="8" height="25" rx="1.5" fill="#e63946"/>
+          <line x1="22" y1="90" x2="22" y2="132" stroke="#e63946" stroke-width="1"/>
+          <rect x="58" y="85" width="8" height="18" rx="1.5" fill="#e63946"/>
+          <line x1="62" y1="75" x2="62" y2="110" stroke="#e63946" stroke-width="1"/>
+          <rect x="98" y="78" width="8" height="22" rx="1.5" fill="#e63946"/>
+          <line x1="102" y1="68" x2="102" y2="105" stroke="#e63946" stroke-width="1"/>
+          <rect x="138" y="65" width="8" height="20" rx="1.5" fill="#2d936c"/>
+          <line x1="142" y1="58" x2="142" y2="92" stroke="#2d936c" stroke-width="1"/>
+          <rect x="178" y="50" width="8" height="28" rx="1.5" fill="#e63946"/>
+          <line x1="182" y1="40" x2="182" y2="85" stroke="#e63946" stroke-width="1"/>
+          <rect x="218" y="42" width="8" height="22" rx="1.5" fill="#e63946"/>
+          <line x1="222" y1="35" x2="222" y2="70" stroke="#e63946" stroke-width="1"/>
+          <rect x="258" y="38" width="8" height="18" rx="1.5" fill="#2d936c"/>
+          <line x1="262" y1="30" x2="262" y2="62" stroke="#2d936c" stroke-width="1"/>
+          <rect x="298" y="32" width="8" height="30" rx="1.5" fill="#e63946"/>
+          <line x1="302" y1="22" x2="302" y2="68" stroke="#e63946" stroke-width="1"/>
+          <rect x="338" y="28" width="8" height="18" rx="1.5" fill="#e63946"/>
+          <line x1="342" y1="20" x2="342" y2="52" stroke="#e63946" stroke-width="1"/>
+          <!-- Volume -->
+          <rect x="18" y="155" width="8" height="12" rx="1" fill="rgba(230,57,70,0.25)"/>
+          <rect x="58" y="153" width="8" height="14" rx="1" fill="rgba(230,57,70,0.25)"/>
+          <rect x="98" y="150" width="8" height="17" rx="1" fill="rgba(230,57,70,0.25)"/>
+          <rect x="138" y="152" width="8" height="15" rx="1" fill="rgba(45,147,108,0.25)"/>
+          <rect x="178" y="148" width="8" height="19" rx="1" fill="rgba(230,57,70,0.25)"/>
+          <rect x="218" y="151" width="8" height="16" rx="1" fill="rgba(230,57,70,0.25)"/>
+          <rect x="258" y="154" width="8" height="13" rx="1" fill="rgba(45,147,108,0.25)"/>
+          <rect x="298" y="145" width="8" height="22" rx="1" fill="rgba(230,57,70,0.3)"/>
+          <rect x="338" y="150" width="8" height="17" rx="1" fill="rgba(230,57,70,0.25)"/>
+        </svg>
+      </div>
+      <div class="mock-footer">
+        <span>MA5: 26.18 &nbsp; MA20: 25.42</span>
+        <span>成交量: 1.2亿</span>
+      </div>
+    </div>
+    <div class="theme-info">
+      <span class="theme-badge">日间模式</span>
+      <div class="theme-name">宣纸</div>
+      <div class="theme-subtitle">PARCHMENT</div>
+      <p class="theme-desc">
+        如古宣纸般的暖白底色，搭配深棕墨字。灵感来自《华尔街日报》
+        与中国传统书卷，适合白天明亮的办公环境使用。
+      </p>
+      <div class="swatches">
+        <div class="swatch-group"><div class="swatch" style="background:#f5f0e8"></div><div class="swatch-label">底色</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#ebe5da"></div><div class="swatch-label">卡片</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#2c2418"></div><div class="swatch-label">文字</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#a07030"></div><div class="swatch-label">高亮</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#e63946"></div><div class="swatch-label">涨</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#2d936c"></div><div class="swatch-label">跌</div></div>
+      </div>
+      <ul class="theme-features">
+        <li>暖白底色，适合日间明亮环境</li>
+        <li>深棕文字，阅读体验如书卷般舒适</li>
+        <li>琥珀色高亮，典雅而不刺眼</li>
+        <li>网格线柔和，数据清晰可辨</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Theme 3: 碧渊 ═══ -->
+  <div class="theme-card theme-azure">
+    <div class="theme-preview">
+      <div class="mock-header">
+        <span class="mock-brand">涨讯</span>
+        <span class="mock-divider"></span>
+        <span class="mock-sub">A股事件驱动</span>
+      </div>
+      <div class="mock-ohlc">
+        <span class="mock-ohlc-label">开</span><span class="mock-ohlc-val">26.04</span>
+        <span class="mock-ohlc-label">高</span><span class="mock-ohlc-val">26.88</span>
+        <span class="mock-ohlc-label">低</span><span class="mock-ohlc-val">25.91</span>
+        <span class="mock-ohlc-label">收</span><span class="mock-ohlc-val">26.52</span>
+        <span class="mock-ohlc-change">+2.35%</span>
+      </div>
+      <div class="mock-chart">
+        <svg viewBox="0 0 380 170">
+          <line x1="0" y1="42" x2="380" y2="42" stroke="#141c28" stroke-width="0.5" stroke-dasharray="2,4"/>
+          <line x1="0" y1="85" x2="380" y2="85" stroke="#141c28" stroke-width="0.5" stroke-dasharray="2,4"/>
+          <line x1="0" y1="128" x2="380" y2="128" stroke="#141c28" stroke-width="0.5" stroke-dasharray="2,4"/>
+          <!-- MA5 glow -->
+          <path d="M20,110 Q60,95 100,85 Q140,70 180,60 Q220,55 260,45 Q300,50 340,40" fill="none" stroke="rgba(108,180,238,0.12)" stroke-width="5"/>
+          <!-- MA5 -->
+          <path d="M20,110 Q60,95 100,85 Q140,70 180,60 Q220,55 260,45 Q300,50 340,40" fill="none" stroke="#6cb4ee" stroke-width="1.5" stroke-opacity="0.8"/>
+          <!-- Candles - cyan tinted red -->
+          <rect x="18" y="100" width="8" height="25" rx="1.5" fill="#e63946"/>
+          <line x1="22" y1="90" x2="22" y2="132" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <rect x="58" y="85" width="8" height="18" rx="1.5" fill="#e63946"/>
+          <line x1="62" y1="75" x2="62" y2="110" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <rect x="98" y="78" width="8" height="22" rx="1.5" fill="#e63946"/>
+          <line x1="102" y1="68" x2="102" y2="105" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <rect x="138" y="65" width="8" height="20" rx="1.5" fill="#2d936c"/>
+          <line x1="142" y1="58" x2="142" y2="92" stroke="rgba(45,147,108,0.5)" stroke-width="1"/>
+          <rect x="178" y="50" width="8" height="28" rx="1.5" fill="#e63946"/>
+          <line x1="182" y1="40" x2="182" y2="85" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <rect x="218" y="42" width="8" height="22" rx="1.5" fill="#e63946"/>
+          <line x1="222" y1="35" x2="222" y2="70" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <rect x="258" y="38" width="8" height="18" rx="1.5" fill="#2d936c"/>
+          <line x1="262" y1="30" x2="262" y2="62" stroke="rgba(45,147,108,0.5)" stroke-width="1"/>
+          <rect x="298" y="32" width="8" height="30" rx="1.5" fill="#e63946" filter="url(#glow2)"/>
+          <line x1="302" y1="22" x2="302" y2="68" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <rect x="338" y="28" width="8" height="18" rx="1.5" fill="#e63946"/>
+          <line x1="342" y1="20" x2="342" y2="52" stroke="rgba(230,57,70,0.5)" stroke-width="1"/>
+          <!-- Volume -->
+          <rect x="18" y="155" width="8" height="12" rx="1" fill="url(#vgu2)"/>
+          <rect x="58" y="153" width="8" height="14" rx="1" fill="url(#vgu2)"/>
+          <rect x="98" y="150" width="8" height="17" rx="1" fill="url(#vgu2)"/>
+          <rect x="138" y="152" width="8" height="15" rx="1" fill="url(#vgd2)"/>
+          <rect x="178" y="148" width="8" height="19" rx="1" fill="url(#vgu2)"/>
+          <rect x="218" y="151" width="8" height="16" rx="1" fill="url(#vgu2)"/>
+          <rect x="258" y="154" width="8" height="13" rx="1" fill="url(#vgd2)"/>
+          <rect x="298" y="145" width="8" height="22" rx="1" fill="url(#vgu2)"/>
+          <rect x="338" y="150" width="8" height="17" rx="1" fill="url(#vgu2)"/>
+          <defs>
+            <filter id="glow2"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <linearGradient id="vgu2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(230,57,70,0.35)"/><stop offset="100%" stop-color="rgba(230,57,70,0.04)"/></linearGradient>
+            <linearGradient id="vgd2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(45,147,108,0.35)"/><stop offset="100%" stop-color="rgba(45,147,108,0.04)"/></linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="mock-footer">
+        <span>MA5: 26.18 &nbsp; MA20: 25.42</span>
+        <span>成交量: 1.2亿</span>
+      </div>
+    </div>
+    <div class="theme-info">
+      <span class="theme-badge">深色专业</span>
+      <div class="theme-name">碧渊</div>
+      <div class="theme-subtitle">DEEP AZURE</div>
+      <p class="theme-desc">
+        冷调深蓝底色，冰蓝高亮如深渊中的微光。灵感来自 Bloomberg Terminal
+        与量化交易台，适合专业交易者长时间专注盯盘。
+      </p>
+      <div class="swatches">
+        <div class="swatch-group"><div class="swatch" style="background:#080c14"></div><div class="swatch-label">底色</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#0e1420"></div><div class="swatch-label">卡片</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#e0e8f0"></div><div class="swatch-label">文字</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#6cb4ee"></div><div class="swatch-label">高亮</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#e63946"></div><div class="swatch-label">涨</div></div>
+        <div class="swatch-group"><div class="swatch" style="background:#2d936c"></div><div class="swatch-label">跌</div></div>
+      </div>
+      <ul class="theme-features">
+        <li>冷蓝底色，极致沉浸的盯盘体验</li>
+        <li>冰蓝高亮，科技感十足</li>
+        <li>冰蓝辉光强化 K 线视觉层次</li>
+        <li>暗色网格线，数据区隔更自然</li>
+      </ul>
+    </div>
+  </div>
+
+</section>
+
+</body>
+</html>

@@ -1,12 +1,11 @@
 """Stock data API — powered by AKShare (China A-share data)."""
 
-import json
 import logging
 
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from backend.akshare.client import fetch_ohlc, fetch_news, search_stocks, resolve_code
 from backend.database import get_conn
@@ -52,6 +51,7 @@ def search(q: str = Query(..., min_length=1)):
 @router.get("/{code}/ohlc")
 def get_ohlc(
     code: str,
+    background_tasks: BackgroundTasks,
     start: Optional[str] = None,
     end: Optional[str] = None,
 ):
@@ -59,8 +59,9 @@ def get_ohlc(
 
     Supports plain codes (e.g. "600519") which are auto-resolved to
     exchange-qualified form (e.g. "600519.SH").
+
+    If the data is stale (not updated today), triggers a background refresh.
     """
-    # Normalize: resolve plain code to exchange-qualified form
     resolved = resolve_code(code)
 
     conn = get_conn()
@@ -77,6 +78,18 @@ def get_ohlc(
 
     query += " ORDER BY date ASC"
     rows = conn.execute(query, params).fetchall()
+
+    # Check staleness: refresh if last_ohlc_fetch is not today
+    today = datetime.now().date().isoformat()
+    ticker = conn.execute(
+        "SELECT last_ohlc_fetch FROM tickers WHERE symbol = ?", (resolved,)
+    ).fetchone()
+
+    if ticker:
+        last_fetch = str(ticker["last_ohlc_fetch"] or "")[:10]
+        if last_fetch < today:
+            background_tasks.add_task(_fetch_stock_data, resolved)
+
     conn.close()
 
     if not rows:

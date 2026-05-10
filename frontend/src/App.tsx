@@ -33,7 +33,7 @@ interface ArticleSelection {
 type Route = 'main' | 'portfolio';
 
 function App() {
-  const { lang, setLang, isZh } = useLang();
+  const { lang, setLang, isZh, theme, setTheme } = useLang();
   const [route, setRoute] = useState<Route>('main');
   const [activeTickers, setActiveTickers] = useState<string[]>([]);
   const [selectedSymbol, setSelectedSymbol] = useState('');
@@ -245,6 +245,7 @@ function App() {
       <header className="app-header">
         <div className="header-left">
           <h1 className="brand-name">涨讯</h1>
+          <div className="brand-divider" />
           <span className="brand-sub">{t('brand.sub', lang)}</span>
         </div>
         <StockSelector
@@ -263,10 +264,13 @@ function App() {
             <span className="ohlc-date">{hoveredOhlc.date}</span>
             <span className="ohlc-label">{t('ohlc.open', lang)}</span>
             <span className="ohlc-val">{hoveredOhlc.open.toFixed(2)}</span>
+            <span className="ohlc-sep" />
             <span className="ohlc-label">{t('ohlc.high', lang)}</span>
             <span className="ohlc-val">{hoveredOhlc.high.toFixed(2)}</span>
+            <span className="ohlc-sep" />
             <span className="ohlc-label">{t('ohlc.low', lang)}</span>
             <span className="ohlc-val">{hoveredOhlc.low.toFixed(2)}</span>
+            <span className="ohlc-sep" />
             <span className="ohlc-label">{t('ohlc.close', lang)}</span>
             <span className="ohlc-val">{hoveredOhlc.close.toFixed(2)}</span>
             <span className={`ohlc-change ${hoveredOhlc.change >= 0 ? 'up' : 'down'}`}>
@@ -276,6 +280,16 @@ function App() {
           </div>
         ) : null}
         <div className="header-right">
+          <button
+            className="nav-btn theme-toggle"
+            onClick={() => {
+              const next = theme === 'obsidian' ? 'parchment' : theme === 'parchment' ? 'azure' : 'obsidian';
+              setTheme(next);
+            }}
+            title="切换主题"
+          >
+            {theme === 'obsidian' ? '🌙' : theme === 'parchment' ? '☀️' : '🌊'}
+          </button>
           <button
             className="nav-btn lang-toggle"
             onClick={() => setLang(isZh ? 'en' : 'zh')}

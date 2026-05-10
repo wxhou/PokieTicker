@@ -100,7 +100,7 @@ const PERIOD_LABELS_ZH: Record<Period, string> = { '1W': '1周', '1M': '1月', '
 const PERIOD_LABELS_EN: Record<Period, string> = { '1W': '1W', '1M': '1M', '3M': '3M', '1Y': '1Y', 'ALL': 'All' };
 
 export default function CandlestickChart({ symbol, lockedNewsId, highlightedArticleIds, highlightColor, onHover, onRangeSelect, onArticleSelect, onDayClick }: Props) {
-  const { lang } = useLang();
+  const { lang, theme } = useLang();
   const svgRef = useRef<SVGSVGElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -174,7 +174,8 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       ctx.fillStyle = (isCategoryMatch && hasCategoryFilter && hlColor) ? hlColor : p.color;
 
       if (isHover || isLocked || (isCategoryMatch && hasCategoryFilter)) {
-        const glowColor = isLocked ? '#c9a96e' : (isCategoryMatch && hlColor) ? hlColor : p.color;
+        const lockedGlow = getComputedStyle(document.documentElement).getPropertyValue('--accent-primary').trim() || '#c9a96e';
+        const glowColor = isLocked ? lockedGlow : (isCategoryMatch && hlColor) ? hlColor : p.color;
         ctx.shadowColor = glowColor;
         ctx.shadowBlur = (isLocked || isHover ? 14 : 8) * dpr;
       } else {
@@ -188,9 +189,10 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
 
       // Draw cyan ring for locked particle
       if (isLocked) {
-        ctx.shadowColor = '#c9a96e';
+        const lockedColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-primary').trim() || '#c9a96e';
+        ctx.shadowColor = lockedColor;
         ctx.shadowBlur = 10 * dpr;
-        ctx.strokeStyle = '#c9a96e';
+        ctx.strokeStyle = lockedColor;
         ctx.lineWidth = 1.5 * dpr;
         ctx.beginPath();
         ctx.arc(p.px * dpr, p.py * dpr, (radius + 3) * dpr, 0, Math.PI * 2);
@@ -231,13 +233,13 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       .finally(() => setLoading(false));
   }, [symbol]);
 
-  // Re-render on period change
+  // Re-render on period, theme, or lang change
   useEffect(() => {
     const ohlc = rawOhlcRef.current;
     const particles = rawParticlesRef.current;
     if (ohlc.length === 0) return;
     drawChart(sliceByPeriod(ohlc, period), particles);
-  }, [period]);
+  }, [period, theme, lang]);
 
   function sliceByPeriod(data: OHLCRow[], p: Period): OHLCRow[] {
     if (p === 'ALL') return data;
@@ -253,6 +255,10 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
 
     const container = containerRef.current;
     if (!container) return;
+
+    // Read theme-aware chart colors from CSS variables
+    const cs = getComputedStyle(container);
+    const cv = (name: string) => cs.getPropertyValue(name).trim();
 
     const fullWidth = container.clientWidth;
     const fullHeight = container.clientHeight || 600;
@@ -350,18 +356,18 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
 
     // Volume gradient (up)
     const volGradUp = defs.append('linearGradient').attr('id', 'vol-grad-up').attr('x1', '0').attr('y1', '0').attr('x2', '0').attr('y2', '1');
-    volGradUp.append('stop').attr('offset', '0%').attr('stop-color', 'rgba(230, 57, 70, 0.45)');
-    volGradUp.append('stop').attr('offset', '100%').attr('stop-color', 'rgba(230, 57, 70, 0.08)');
+    volGradUp.append('stop').attr('offset', '0%').attr('stop-color', cv('--chart-vol-up'));
+    volGradUp.append('stop').attr('offset', '100%').attr('stop-color', cv('--chart-vol-up-end'));
 
     // Volume gradient (down)
     const volGradDown = defs.append('linearGradient').attr('id', 'vol-grad-down').attr('x1', '0').attr('y1', '0').attr('x2', '0').attr('y2', '1');
-    volGradDown.append('stop').attr('offset', '0%').attr('stop-color', 'rgba(45, 147, 108, 0.40)');
-    volGradDown.append('stop').attr('offset', '100%').attr('stop-color', 'rgba(45, 147, 108, 0.06)');
+    volGradDown.append('stop').attr('offset', '0%').attr('stop-color', cv('--chart-vol-down'));
+    volGradDown.append('stop').attr('offset', '100%').attr('stop-color', cv('--chart-vol-down-end'));
 
     // Chart background gradient
     const bgGrad = defs.append('linearGradient').attr('id', 'chart-bg').attr('x1', '0').attr('y1', '0').attr('x2', '0').attr('y2', '1');
-    bgGrad.append('stop').attr('offset', '0%').attr('stop-color', '#0e0d0b');
-    bgGrad.append('stop').attr('offset', '100%').attr('stop-color', '#0a0908');
+    bgGrad.append('stop').attr('offset', '0%').attr('stop-color', cv('--chart-bg-top'));
+    bgGrad.append('stop').attr('offset', '100%').attr('stop-color', cv('--chart-bg-bot'));
 
     // Apply background
     g.append('rect')
@@ -379,7 +385,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
           .tickFormat(() => '')
       )
       .selectAll('line')
-      .style('stroke', '#1e1c19')
+      .style('stroke', cv('--chart-grid'))
       .style('stroke-width', 1)
       .style('stroke-dasharray', '2,4');
     g.selectAll('.grid-y .domain').remove();
@@ -395,7 +401,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
           .tickFormat(() => '')
       )
       .selectAll('line')
-      .style('stroke', '#1a1815')
+      .style('stroke', cv('--chart-grid-v'))
       .style('stroke-width', 1)
       .style('stroke-dasharray', '2,4');
     g.selectAll('.grid-x .domain').remove();
@@ -404,7 +410,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
     g.append('line')
       .attr('x1', 0).attr('x2', width)
       .attr('y1', volTop - 6).attr('y2', volTop - 6)
-      .attr('stroke', '#2a2722')
+      .attr('stroke', cv('--chart-sep'))
       .attr('stroke-width', 0.5)
       .attr('stroke-opacity', 0.6);
 
@@ -420,7 +426,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
         }))
       .selectAll('text')
       .style('font-size', '11px')
-      .style('fill', '#6b6560')
+      .style('fill', cv('--chart-axis-text'))
       .style('font-family', '-apple-system, "PingFang SC", sans-serif');
 
     // Y Axis (price)
@@ -428,7 +434,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       .call(d3.axisLeft(y).ticks(6).tickFormat((d) => `¥${Number(d).toFixed(0)}`))
       .selectAll('text')
       .style('font-size', '11px')
-      .style('fill', '#7a746c')
+      .style('fill', cv('--chart-axis-text-y'))
       .style('font-family', '"SF Mono", "Fira Code", monospace');
 
     // Volume Y axis (compact, right side)
@@ -442,11 +448,11 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       }))
       .selectAll('text')
       .style('font-size', '10px')
-      .style('fill', '#5c5750')
+      .style('fill', cv('--chart-vol-text'))
       .style('font-family', '"SF Mono", "Fira Code", monospace');
 
-    g.selectAll('.domain').style('stroke', '#1e1c19');
-    g.selectAll('.tick line').style('stroke', '#1e1c19');
+    g.selectAll('.domain').style('stroke', cv('--chart-axis'));
+    g.selectAll('.tick line').style('stroke', cv('--chart-axis'));
 
     const candleWidth = Math.max(1.5, (width / data.length) * 0.65);
 
@@ -471,13 +477,13 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
     g.append('path')
       .datum(data)
       .attr('fill', 'none')
-      .attr('stroke', 'rgba(201, 169, 110, 0.15)')
+      .attr('stroke', cv('--chart-ma5-glow'))
       .attr('stroke-width', 4)
       .attr('d', maLine('ma5') as unknown as string);
     g.append('path')
       .datum(data)
       .attr('fill', 'none')
-      .attr('stroke', '#c9a96e')
+      .attr('stroke', cv('--chart-ma5'))
       .attr('stroke-width', 1.5)
       .attr('stroke-opacity', 0.8)
       .attr('d', maLine('ma5') as unknown as string);
@@ -486,13 +492,13 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
     g.append('path')
       .datum(data)
       .attr('fill', 'none')
-      .attr('stroke', 'rgba(120, 113, 100, 0.1)')
+      .attr('stroke', cv('--chart-ma20-glow'))
       .attr('stroke-width', 4)
       .attr('d', maLine('ma20') as unknown as string);
     g.append('path')
       .datum(data)
       .attr('fill', 'none')
-      .attr('stroke', '#787164')
+      .attr('stroke', cv('--chart-ma20'))
       .attr('stroke-width', 1.2)
       .attr('stroke-opacity', 0.6)
       .attr('stroke-dasharray', '6,3')
@@ -507,7 +513,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       .attr('x2', (d) => x(d.date))
       .attr('y1', (d) => y(d.high))
       .attr('y2', (d) => y(d.low))
-      .attr('stroke', (d) => (d.close >= d.open ? 'rgba(230, 57, 70, 0.5)' : 'rgba(45, 147, 108, 0.5)'))
+      .attr('stroke', (d) => (d.close >= d.open ? cv('--chart-wick-up') : cv('--chart-wick-down')))
       .attr('stroke-width', 1);
 
     // Bodies — rounded corners, subtle glow for strong moves
@@ -516,9 +522,9 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       .attr('y', (d) => y(Math.max(d.open, d.close)))
       .attr('width', candleWidth)
       .attr('height', (d) => Math.max(1, Math.abs(y(d.open) - y(d.close))))
-      .attr('fill', (d) => (d.close >= d.open ? '#e63946' : '#2d936c'))
+      .attr('fill', (d) => (d.close >= d.open ? cv('--chart-body-up') : cv('--chart-body-down')))
       .attr('rx', Math.min(2, candleWidth * 0.2))
-      .attr('stroke', (d) => d.isLimitUp || d.isLimitDown ? '#c9a96e' : 'none')
+      .attr('stroke', (d) => d.isLimitUp || d.isLimitDown ? cv('--chart-limit') : 'none')
       .attr('stroke-width', 2)
       .attr('filter', (d) => (d.change > 3 || d.change < -3) ? 'url(#candle-glow)' : 'none');
 
@@ -529,7 +535,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       .attr('y', (d) => y(d.high) - 5)
       .attr('text-anchor', 'middle')
       .attr('font-size', '9px')
-      .attr('fill', '#c9a96e')
+      .attr('fill', cv('--chart-limit'))
       .text('◆');
 
     // Limit-down marker — gold diamond
@@ -539,7 +545,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       .attr('y', (d) => y(d.low) + 12)
       .attr('text-anchor', 'middle')
       .attr('font-size', '9px')
-      .attr('fill', '#c9a96e')
+      .attr('fill', cv('--chart-limit'))
       .text('◆');
 
     // --- Place particles overlaid on K-line ---
@@ -611,14 +617,14 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
 
     // --- Crosshair elements ---
     const crossV = g.append('line')
-      .style('stroke', '#3a3630')
+      .style('stroke', cv('--chart-crosshair'))
       .style('stroke-width', 0.5)
       .style('stroke-dasharray', '4,3')
       .style('display', 'none')
       .style('pointer-events', 'none');
 
     const crossH = g.append('line')
-      .style('stroke', '#3a3630')
+      .style('stroke', cv('--chart-crosshair'))
       .style('stroke-width', 0.5)
       .style('stroke-dasharray', '4,3')
       .style('display', 'none')
@@ -627,12 +633,12 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
     // Price label on Y axis
     const priceLabel = g.append('g').style('display', 'none');
     priceLabel.append('rect')
-      .attr('fill', '#191714')
+      .attr('fill', cv('--chart-label-bg'))
       .attr('rx', 3)
       .attr('width', 46)
       .attr('height', 18);
     priceLabel.append('text')
-      .attr('fill', '#8a8478')
+      .attr('fill', cv('--chart-label-text'))
       .attr('font-size', '12px')
       .attr('text-anchor', 'middle')
       .attr('dy', '13px');
@@ -640,12 +646,12 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
     // Date label on X axis
     const dateLabel = g.append('g').style('display', 'none');
     dateLabel.append('rect')
-      .attr('fill', '#191714')
+      .attr('fill', cv('--chart-label-bg'))
       .attr('rx', 3)
       .attr('width', 75)
       .attr('height', 20);
     dateLabel.append('text')
-      .attr('fill', '#8a8478')
+      .attr('fill', cv('--chart-label-text'))
       .attr('font-size', '13px')
       .attr('text-anchor', 'middle')
       .attr('dy', '14px');
@@ -747,9 +753,9 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       .call(brush);
 
     brushG.selectAll('.selection')
-      .attr('fill', '#c9a96e')
+      .attr('fill', cv('--chart-brush'))
       .attr('fill-opacity', 0.15)
-      .attr('stroke', '#c9a96e')
+      .attr('stroke', cv('--chart-brush'))
       .attr('stroke-width', 1);
 
     // Hover events on the brush overlay
