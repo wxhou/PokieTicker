@@ -28,6 +28,7 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
   const [errorMsg, setErrorMsg] = useState('');
   const [toast, setToast] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -376,13 +377,20 @@ export default function ScreenshotImport({ token, onSuccess, onClose }: Props) {
                 <button className="si-drop-btn" onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}>
                   {t('si.selectFile', lang)}
                 </button>
-                <button className="si-drop-btn primary" onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }} capture="environment">
+                <button className="si-drop-btn primary" onClick={e => { e.stopPropagation(); cameraInputRef.current?.click(); }}>
                   {t('si.takePhoto', lang)}
                 </button>
               </div>
               {errorMsg && <div className="si-error-text">{errorMsg}</div>}
               <input
                 ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                style={{ display: 'none' }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleFileChange(f); }}
+              />
+              <input
+                ref={cameraInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 capture="environment"

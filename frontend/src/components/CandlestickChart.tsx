@@ -46,7 +46,6 @@ interface ArticleSelection {
 
 interface Props {
   symbol: string;
-  lang?: 'zh' | 'en';
   lockedNewsId?: string | null;
   highlightedArticleIds?: string[] | null;
   highlightColor?: string | null;
@@ -100,7 +99,7 @@ const PERIOD_DAYS: Record<Period, number> = {
 const PERIOD_LABELS_ZH: Record<Period, string> = { '1W': '1周', '1M': '1月', '3M': '3月', '1Y': '1年', 'ALL': '全部' };
 const PERIOD_LABELS_EN: Record<Period, string> = { '1W': '1W', '1M': '1M', '3M': '3M', '1Y': '1Y', 'ALL': 'All' };
 
-export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, highlightedArticleIds, highlightColor, onHover, onRangeSelect, onArticleSelect, onDayClick }: Props) {
+export default function CandlestickChart({ symbol, lockedNewsId, highlightedArticleIds, highlightColor, onHover, onRangeSelect, onArticleSelect, onDayClick }: Props) {
   const { lang } = useLang();
   const svgRef = useRef<SVGSVGElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -339,7 +338,38 @@ export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, hi
       .domain([0, maxVol * 1.1])
       .range([volTop + volHeight, volTop]);
 
-    // Grid lines (price area only)
+    // Defs for gradients and filters
+    const defs = svg.append('defs');
+
+    // Subtle glow filter for candles
+    const glowFilter = defs.append('filter').attr('id', 'candle-glow');
+    glowFilter.append('feGaussianBlur').attr('stdDeviation', '2').attr('result', 'blur');
+    glowFilter.append('feMerge').selectAll('feMergeNode')
+      .data(['blur', 'SourceGraphic']).enter()
+      .append('feMergeNode').attr('in', (d) => d);
+
+    // Volume gradient (up)
+    const volGradUp = defs.append('linearGradient').attr('id', 'vol-grad-up').attr('x1', '0').attr('y1', '0').attr('x2', '0').attr('y2', '1');
+    volGradUp.append('stop').attr('offset', '0%').attr('stop-color', 'rgba(230, 57, 70, 0.45)');
+    volGradUp.append('stop').attr('offset', '100%').attr('stop-color', 'rgba(230, 57, 70, 0.08)');
+
+    // Volume gradient (down)
+    const volGradDown = defs.append('linearGradient').attr('id', 'vol-grad-down').attr('x1', '0').attr('y1', '0').attr('x2', '0').attr('y2', '1');
+    volGradDown.append('stop').attr('offset', '0%').attr('stop-color', 'rgba(45, 147, 108, 0.40)');
+    volGradDown.append('stop').attr('offset', '100%').attr('stop-color', 'rgba(45, 147, 108, 0.06)');
+
+    // Chart background gradient
+    const bgGrad = defs.append('linearGradient').attr('id', 'chart-bg').attr('x1', '0').attr('y1', '0').attr('x2', '0').attr('y2', '1');
+    bgGrad.append('stop').attr('offset', '0%').attr('stop-color', '#0e0d0b');
+    bgGrad.append('stop').attr('offset', '100%').attr('stop-color', '#0a0908');
+
+    // Apply background
+    g.append('rect')
+      .attr('x', -margin.left).attr('y', -margin.top)
+      .attr('width', fullWidth).attr('height', fullHeight)
+      .attr('fill', 'url(#chart-bg)');
+
+    // Grid lines — horizontal, subtle warmth
     g.append('g')
       .attr('class', 'grid-y')
       .call(
@@ -349,16 +379,34 @@ export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, hi
           .tickFormat(() => '')
       )
       .selectAll('line')
-      .style('stroke', '#191714')
-      .style('stroke-width', 1);
+      .style('stroke', '#1e1c19')
+      .style('stroke-width', 1)
+      .style('stroke-dasharray', '2,4');
     g.selectAll('.grid-y .domain').remove();
 
-    // Separator line between price and volume
+    // Vertical grid (time markers)
+    g.append('g')
+      .attr('class', 'grid-x')
+      .attr('transform', `translate(0,${priceHeight})`)
+      .call(
+        d3.axisBottom(x)
+          .ticks(6)
+          .tickSize(-priceHeight)
+          .tickFormat(() => '')
+      )
+      .selectAll('line')
+      .style('stroke', '#1a1815')
+      .style('stroke-width', 1)
+      .style('stroke-dasharray', '2,4');
+    g.selectAll('.grid-x .domain').remove();
+
+    // Separator — subtle gold tint
     g.append('line')
       .attr('x1', 0).attr('x2', width)
-      .attr('y1', volTop - 4).attr('y2', volTop - 4)
+      .attr('y1', volTop - 6).attr('y2', volTop - 6)
       .attr('stroke', '#2a2722')
-      .attr('stroke-width', 0.5);
+      .attr('stroke-width', 0.5)
+      .attr('stroke-opacity', 0.6);
 
     // X Axis (at the very bottom)
     g.append('g')
@@ -371,15 +419,17 @@ export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, hi
           return d3.timeFormat('%b %y')(dt);
         }))
       .selectAll('text')
-      .style('font-size', '12px')
-      .style('fill', '#5c5750');
+      .style('font-size', '11px')
+      .style('fill', '#6b6560')
+      .style('font-family', '-apple-system, "PingFang SC", sans-serif');
 
     // Y Axis (price)
     g.append('g')
       .call(d3.axisLeft(y).ticks(6).tickFormat((d) => `¥${Number(d).toFixed(0)}`))
       .selectAll('text')
-      .style('font-size', '12px')
-      .style('fill', '#5c5750');
+      .style('font-size', '11px')
+      .style('fill', '#7a746c')
+      .style('font-family', '"SF Mono", "Fira Code", monospace');
 
     // Volume Y axis (compact, right side)
     g.append('g')
@@ -392,87 +442,105 @@ export default function CandlestickChart({ symbol, lang = 'zh', lockedNewsId, hi
       }))
       .selectAll('text')
       .style('font-size', '10px')
-      .style('fill', '#5c5750');
+      .style('fill', '#5c5750')
+      .style('font-family', '"SF Mono", "Fira Code", monospace');
 
-    g.selectAll('.domain').style('stroke', '#2a2722');
-    g.selectAll('.tick line').style('stroke', '#2a2722');
+    g.selectAll('.domain').style('stroke', '#1e1c19');
+    g.selectAll('.tick line').style('stroke', '#1e1c19');
 
     const candleWidth = Math.max(1.5, (width / data.length) * 0.65);
 
-    // --- Volume bars ---
+    // --- Volume bars (gradient fill) ---
     g.selectAll('.vol-bar').data(data).enter().append('rect')
       .attr('class', 'vol-bar')
       .attr('x', (d) => x(d.date) - candleWidth / 2)
       .attr('y', (d) => yVol(d.volume))
       .attr('width', candleWidth)
       .attr('height', (d) => Math.max(1, yVol(0) - yVol(d.volume)))
-      .attr('fill', (d) => d.close >= d.open
-        ? 'rgba(230, 57, 70, 0.35)'
-        : 'rgba(45, 147, 108, 0.35)');
+      .attr('fill', (d) => d.close >= d.open ? 'url(#vol-grad-up)' : 'url(#vol-grad-down)')
+      .attr('rx', 1);
 
-    // --- MA lines ---
+    // --- MA lines (with glow shadow) ---
     const maLine = (field: 'ma5' | 'ma20') => d3.line<ChartRow>()
       .x((d) => x(d.date))
       .y((d) => y(d[field] ?? 0))
-      .defined((d) => d[field] != null);
+      .defined((d) => d[field] != null)
+      .curve(d3.curveMonotoneX);
 
+    // MA5 — gold with glow
+    g.append('path')
+      .datum(data)
+      .attr('fill', 'none')
+      .attr('stroke', 'rgba(201, 169, 110, 0.15)')
+      .attr('stroke-width', 4)
+      .attr('d', maLine('ma5') as unknown as string);
     g.append('path')
       .datum(data)
       .attr('fill', 'none')
       .attr('stroke', '#c9a96e')
-      .attr('stroke-width', 1)
-      .attr('stroke-opacity', 0.7)
-      .attr('d', maLine('ma5') as string | null);
+      .attr('stroke-width', 1.5)
+      .attr('stroke-opacity', 0.8)
+      .attr('d', maLine('ma5') as unknown as string);
 
+    // MA20 — cool neutral with subtle glow
     g.append('path')
       .datum(data)
       .attr('fill', 'none')
-      .attr('stroke', '#5c5750')
-      .attr('stroke-width', 1)
+      .attr('stroke', 'rgba(120, 113, 100, 0.1)')
+      .attr('stroke-width', 4)
+      .attr('d', maLine('ma20') as unknown as string);
+    g.append('path')
+      .datum(data)
+      .attr('fill', 'none')
+      .attr('stroke', '#787164')
+      .attr('stroke-width', 1.2)
       .attr('stroke-opacity', 0.6)
-      .attr('d', maLine('ma20') as string | null);
+      .attr('stroke-dasharray', '6,3')
+      .attr('d', maLine('ma20') as unknown as string);
 
     // Candlesticks
     const candles = g.selectAll('.candle').data(data).enter().append('g').attr('class', 'candle');
 
-    // Wicks
+    // Wicks — thin with slight opacity
     candles.append('line')
       .attr('x1', (d) => x(d.date))
       .attr('x2', (d) => x(d.date))
       .attr('y1', (d) => y(d.high))
       .attr('y2', (d) => y(d.low))
-      .attr('stroke', (d) => (d.close >= d.open ? '#e63946' : '#2d936c'))
+      .attr('stroke', (d) => (d.close >= d.open ? 'rgba(230, 57, 70, 0.5)' : 'rgba(45, 147, 108, 0.5)'))
       .attr('stroke-width', 1);
 
-    // Bodies
+    // Bodies — rounded corners, subtle glow for strong moves
     candles.append('rect')
       .attr('x', (d) => x(d.date) - candleWidth / 2)
       .attr('y', (d) => y(Math.max(d.open, d.close)))
       .attr('width', candleWidth)
       .attr('height', (d) => Math.max(1, Math.abs(y(d.open) - y(d.close))))
       .attr('fill', (d) => (d.close >= d.open ? '#e63946' : '#2d936c'))
+      .attr('rx', Math.min(2, candleWidth * 0.2))
       .attr('stroke', (d) => d.isLimitUp || d.isLimitDown ? '#c9a96e' : 'none')
-      .attr('stroke-width', 2);
+      .attr('stroke-width', 2)
+      .attr('filter', (d) => (d.change > 3 || d.change < -3) ? 'url(#candle-glow)' : 'none');
 
-    // Limit-up triangle marker (▲) at top of candle
+    // Limit-up marker — gold diamond
     candles.filter((d) => d.isLimitUp)
       .append('text')
       .attr('x', (d) => x(d.date))
-      .attr('y', (d) => y(d.high) - 6)
+      .attr('y', (d) => y(d.high) - 5)
       .attr('text-anchor', 'middle')
-      .attr('font-size', '11px')
-      .attr('fill', '#2d936c')
-      .text('▲');
+      .attr('font-size', '9px')
+      .attr('fill', '#c9a96e')
+      .text('◆');
 
-    // Limit-down triangle marker (▼) at bottom of candle
+    // Limit-down marker — gold diamond
     candles.filter((d) => d.isLimitDown)
       .append('text')
       .attr('x', (d) => x(d.date))
-      .attr('y', (d) => y(d.low) + 14)
+      .attr('y', (d) => y(d.low) + 12)
       .attr('text-anchor', 'middle')
-      .attr('font-size', '11px')
-      .attr('fill', '#e63946')
-      .text('▼');
+      .attr('font-size', '9px')
+      .attr('fill', '#c9a96e')
+      .text('◆');
 
     // --- Place particles overlaid on K-line ---
     // Group particles by trade_date

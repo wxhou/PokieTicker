@@ -310,7 +310,6 @@ function App() {
             <>
               <CandlestickChart
                 symbol={selectedSymbol}
-                lang={lang}
                 lockedNewsId={lockedArticle?.newsId ?? null}
                 highlightedArticleIds={activeCategoryIds.length > 0 ? activeCategoryIds : null}
                 highlightColor={activeCategoryColor}
@@ -353,7 +352,7 @@ function App() {
       <footer className="global-disclaimer">
         {t('footer.disclaimer', lang)}
       </footer>
-      <Agentation accentColor="#c9a96e" />
+      <Agentation />
     </div>
   );
 }

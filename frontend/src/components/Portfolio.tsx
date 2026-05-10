@@ -45,11 +45,11 @@ export default function Portfolio({ onBack }: Props) {
   const [error, setError] = useState('');
   const [showScreenshot, setShowScreenshot] = useState(false);
 
-  async function loadPortfolios(t: string) {
+  async function loadPortfolios(tk: string) {
     setLoading(true);
     try {
       const res = await axios.get('/api/portfolio', {
-        headers: { Authorization: `Bearer ${t}` },
+        headers: { Authorization: `Bearer ${tk}` },
       });
       setPortfolios(res.data);
     } catch (e: unknown) {

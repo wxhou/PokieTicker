@@ -140,13 +140,15 @@ body {
 }
 
 .ohlc-change.up {
-  background: rgba(201, 57, 44, 0.12);
+  background: rgba(201, 57, 44, 0.15);
   color: var(--accent-red-bright);
+  text-shadow: 0 0 8px rgba(230, 57, 70, 0.25);
 }
 
 .ohlc-change.down {
-  background: rgba(45, 147, 108, 0.12);
+  background: rgba(45, 147, 108, 0.15);
   color: var(--accent-green-bright);
+  text-shadow: 0 0 8px rgba(45, 147, 108, 0.25);
 }
 
 /* ===== Header Right (Author Links) ===== */
@@ -366,16 +368,22 @@ body {
   flex: 1;
   min-height: 0;
   position: relative;
-  background: #0a0908;
+  background: linear-gradient(180deg, #0e0d0b 0%, #0a0908 40%, #090807 100%);
+  border-bottom: 1px solid var(--border);
 }
 
 .chart-period-bar {
   position: absolute;
-  top: 6px;
-  right: 46px;
+  top: 8px;
+  right: 48px;
   display: flex;
   gap: 2px;
   z-index: 10;
+  background: rgba(10, 9, 8, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid rgba(58, 54, 48, 0.4);
 }
 
 .chart-period-btn {
@@ -386,20 +394,22 @@ body {
   cursor: pointer;
   font-size: 11px;
   font-weight: 600;
-  color: #5c5750;
+  color: #6b6560;
   font-family: inherit;
-  transition: all 0.15s;
+  transition: all 0.2s;
+  letter-spacing: 0.3px;
 }
 
 .chart-period-btn:hover {
-  color: #8a8478;
-  background: rgba(255, 255, 255, 0.04);
+  color: #a09890;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .chart-period-btn.active {
   color: #c9a96e;
-  border-color: #3a3630;
+  border-color: rgba(201, 169, 110, 0.25);
   background: rgba(201, 169, 110, 0.08);
+  text-shadow: 0 0 12px rgba(201, 169, 110, 0.3);
 }
 
 .chart-container svg {

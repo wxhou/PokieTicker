@@ -222,7 +222,7 @@ const dict: Record<string, Record<Lang, string>> = {
   // Footer
   'footer.disclaimer': {
     zh: '涨讯仅供信息参考，不构成投资建议。股市有风险，投资需谨慎。本平台不具备证券投资咨询资质。',
-    en: 'PokieTicker is for informational purposes only, not investment advice. Stock markets carry risks. This platform does not hold securities advisory qualifications.',
+    en: 'ZhangXun is for informational purposes only, not investment advice. Stock markets carry risks. This platform does not hold securities advisory qualifications.',
   },
 };
 
