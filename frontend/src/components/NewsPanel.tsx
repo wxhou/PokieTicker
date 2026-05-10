@@ -93,6 +93,7 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
   const { lang } = useLang();
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [displayDate, setDisplayDate] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const cacheRef = useRef<Map<string, NewsItem[]>>(new Map());
@@ -111,6 +112,7 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
       const cached = cacheRef.current.get(cacheKey);
       if (cached) {
         setNews(sortBySentiment(cached));
+        setExpanded(false);
         setDisplayDate(hoveredDate);
         return;
       }
@@ -213,7 +215,7 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
         <div className="news-empty">{t('news.noNewsDate', lang)}</div>
       ) : (
         <div className="news-list" ref={listRef}>
-          {newsGroups.map((group) => {
+          {(expanded ? newsGroups : newsGroups.slice(0, 5)).map((group) => {
             const item = group.primary;
             const isDimmed = effectiveCategorySet != null && !effectiveCategorySet.has(item.news_id);
             const hasDupes = group.duplicates.length > 0;
@@ -301,6 +303,11 @@ export default function NewsPanel({ symbol, hoveredDate, onFindSimilar, highligh
               </div>
             );
           })}
+          {newsGroups.length > 5 && !expanded && (
+            <button className="news-show-more" onClick={() => setExpanded(true)}>
+              {t('news.showMore', lang)} ({newsGroups.length - 5})
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -212,12 +212,12 @@ export default function PredictionPanel({ symbol }: Props) {
 
   // Primary forecast for the header summary
   const primaryForecast = forecast7 || forecast30;
-  const primary = primaryForecast
-    ? (primaryForecast.prediction.t3 || primaryForecast.prediction.t1 || primaryForecast.prediction.t5)
-    : null;
-  // Derive overall direction from conclusion text, fallback to model direction
+  // Derive overall direction from conclusion text (source of truth), fallback to model direction
   const conclusionDir = primaryForecast?.conclusion
     ? (primaryForecast.conclusion.includes('看多') || primaryForecast.conclusion.includes('偏多') || primaryForecast.conclusion.toLowerCase().includes('bullish') ? 'up' : 'down')
+    : null;
+  const primary = primaryForecast
+    ? (primaryForecast.prediction.t3 || primaryForecast.prediction.t1 || primaryForecast.prediction.t5)
     : null;
   const isUp = conclusionDir === 'up' || (conclusionDir === null && primary?.direction === 'up');
   const ns = primaryForecast?.news_summary;
@@ -408,7 +408,9 @@ function ForecastSection({
         <div className="fc-impact-section">
           <div className="fc-section-title">{t('pred.keyNews', lang)}</div>
           {ns.top_impact.map((article) => {
-            const retClass = (article.ret_t0 ?? 0) >= 0 ? 'up' : 'down';
+            const retValue = article.ret_t1 ?? article.ret_t0;
+            const retLabel = article.ret_t1 != null ? 'T+1' : 'T+0';
+            const retClass = (retValue ?? 0) >= 0 ? 'up' : 'down';
             const deep = deepResults[article.news_id];
             const isAnalyzing = deepLoading === article.news_id;
             const sentimentLabel = article.sentiment === 'positive' ? t('pred.positive', lang)
@@ -419,7 +421,7 @@ function ForecastSection({
               <div key={article.news_id} className={`fc-impact-card fc-impact-${retClass}`}>
                 <div className="fc-impact-header">
                   <span className={`fc-impact-ret ${retClass}`}>
-                    {article.ret_t0 != null ? `${article.ret_t0 >= 0 ? '+' : ''}${article.ret_t0.toFixed(2)}%` : '-'}
+                    {retValue != null ? `${retLabel} ${retValue >= 0 ? '+' : ''}${retValue.toFixed(2)}%` : '-'}
                   </span>
                   <span className={`fc-impact-sentiment ${article.sentiment || 'unknown'}`}>
                     {sentimentLabel}

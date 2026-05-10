@@ -96,7 +96,7 @@ const PERIOD_DAYS: Record<Period, number> = {
   'ALL': Infinity,
 };
 
-const PERIOD_LABELS_ZH: Record<Period, string> = { '1W': '1周', '1M': '1月', '3M': '3月', '1Y': '1年', 'ALL': '全部' };
+const PERIOD_LABELS_ZH: Record<Period, string> = { '1W': '近1周', '1M': '近1月', '3M': '近3月', '1Y': '近1年', 'ALL': '全部' };
 const PERIOD_LABELS_EN: Record<Period, string> = { '1W': '1W', '1M': '1M', '3M': '3M', '1Y': '1Y', 'ALL': 'All' };
 
 export default function CandlestickChart({ symbol, lockedNewsId, highlightedArticleIds, highlightColor, onHover, onRangeSelect, onArticleSelect, onDayClick }: Props) {
@@ -503,6 +503,24 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       .attr('stroke-opacity', 0.6)
       .attr('stroke-dasharray', '6,3')
       .attr('d', maLine('ma20') as unknown as string);
+
+    // MA legend (top-left, below Y axis labels)
+    const legendX = 10;
+    const legendY = 4;
+    const ma5Color = cv('--chart-ma5');
+    const ma20Color = cv('--chart-ma20');
+
+    g.append('line').attr('x1', legendX).attr('x2', legendX + 16).attr('y1', legendY).attr('y2', legendY)
+      .attr('stroke', ma5Color).attr('stroke-width', 1.5).attr('stroke-opacity', 0.8);
+    g.append('text').attr('x', legendX + 20).attr('y', legendY + 4)
+      .attr('fill', ma5Color).attr('font-size', '10px').attr('font-family', 'inherit')
+      .text('MA5');
+
+    g.append('line').attr('x1', legendX).attr('x2', legendX + 16).attr('y1', legendY + 14).attr('y2', legendY + 14)
+      .attr('stroke', ma20Color).attr('stroke-width', 1.2).attr('stroke-opacity', 0.6).attr('stroke-dasharray', '6,3');
+    g.append('text').attr('x', legendX + 20).attr('y', legendY + 18)
+      .attr('fill', ma20Color).attr('font-size', '10px').attr('font-family', 'inherit')
+      .text('MA20');
 
     // Candlesticks
     const candles = g.selectAll('.candle').data(data).enter().append('g').attr('class', 'candle');

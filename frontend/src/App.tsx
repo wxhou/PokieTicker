@@ -36,6 +36,7 @@ function App() {
   const { lang, setLang, isZh, theme, setTheme } = useLang();
   const [route, setRoute] = useState<Route>('main');
   const [activeTickers, setActiveTickers] = useState<string[]>([]);
+  const [tickerChanges, setTickerChanges] = useState<Record<string, { price: number; change: number | null }>>({});
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [hoveredOhlc, setHoveredOhlc] = useState<{
@@ -69,16 +70,21 @@ function App() {
       .get('/api/stocks')
       .then((res) => {
         setConnError(false);
-        const tickers = (res.data as { symbol: string; last_ohlc_fetch: boolean }[])
-          .filter((t) => t.last_ohlc_fetch)
-          .map((t) => t.symbol);
-        setActiveTickers(tickers);
+        const tickers = (res.data as { symbol: string; last_ohlc_fetch: boolean; last_price?: number; change_pct?: number | null }[])
+          .filter((t) => t.last_ohlc_fetch);
+        const symbols = tickers.map((t) => t.symbol);
+        setActiveTickers(symbols);
+        const changes: Record<string, { price: number; change: number | null }> = {};
+        for (const t of tickers) {
+          if (t.last_price != null) changes[t.symbol] = { price: t.last_price, change: t.change_pct ?? null };
+        }
+        setTickerChanges(changes);
         // Priority: URL param > localStorage > first ticker
         const urlSymbol = new URLSearchParams(window.location.search).get('symbol');
         const last = localStorage.getItem(LAST_SYMBOL_KEY);
-        const initial = (urlSymbol && tickers.includes(urlSymbol)) ? urlSymbol
-          : (last && tickers.includes(last)) ? last
-          : (tickers[0] ?? '');
+        const initial = (urlSymbol && symbols.includes(urlSymbol)) ? urlSymbol
+          : (last && symbols.includes(last)) ? last
+          : (symbols[0] ?? '');
         if (initial) {
           setSelectedSymbol(initial);
           localStorage.setItem(LAST_SYMBOL_KEY, initial);
@@ -251,6 +257,7 @@ function App() {
         <StockSelector
           activeTickers={activeTickers}
           selectedSymbol={selectedSymbol}
+          tickerChanges={tickerChanges}
           onSelect={handleSelectSymbol}
           onAdd={handleAddTicker}
         />

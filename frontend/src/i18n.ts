@@ -111,6 +111,7 @@ const dict: Record<string, Record<Lang, string>> = {
   'news.expand': { zh: '展开', en: 'Expand' },
   'news.all': { zh: '全部', en: 'All' },
   'news.allCount': { zh: '全部', en: 'All' },
+  'news.showMore': { zh: '展开更多', en: 'Show more' },
 
   // Category
   'cat.market': { zh: '市场', en: 'Market' },

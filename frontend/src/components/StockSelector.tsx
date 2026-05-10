@@ -16,11 +16,12 @@ interface TickerInfo {
 interface Props {
   activeTickers: string[];
   selectedSymbol: string;
+  tickerChanges?: Record<string, { price: number; change: number | null }>;
   onSelect: (symbol: string) => void;
   onAdd: (symbol: string) => void;
 }
 
-export default function StockSelector({ activeTickers, selectedSymbol, onSelect, onAdd }: Props) {
+export default function StockSelector({ activeTickers, selectedSymbol, tickerChanges, onSelect, onAdd }: Props) {
   const { lang } = useLang();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Ticker[]>([]);
@@ -101,6 +102,11 @@ export default function StockSelector({ activeTickers, selectedSymbol, onSelect,
           >
             <span className="ticker-tab-name">{displayName(sym)}</span>
             <span className="ticker-tab-code">{displayCode(sym)}</span>
+            {tickerChanges?.[sym]?.change != null && (
+              <span className={`ticker-tab-change ${tickerChanges[sym].change! >= 0 ? 'up' : 'down'}`}>
+                {tickerChanges[sym].change! >= 0 ? '+' : ''}{tickerChanges[sym].change!.toFixed(2)}%
+              </span>
+            )}
           </button>
         ))}
         <button

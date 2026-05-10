@@ -23,11 +23,30 @@ class AddStockRequest(BaseModel):
 
 @router.get("")
 def list_stocks():
-    """List all tracked stocks."""
+    """List all tracked stocks with latest price change."""
     conn = get_conn()
     rows = conn.execute("SELECT * FROM tickers ORDER BY symbol").fetchall()
+    result = []
+    for r in rows:
+        item = dict(r)
+        # Get latest two OHLC rows to compute change
+        last2 = conn.execute(
+            "SELECT date, close FROM ohlc WHERE symbol = ? ORDER BY date DESC LIMIT 2",
+            (r["symbol"],),
+        ).fetchall()
+        if len(last2) >= 2:
+            prev_close = last2[1]["close"]
+            cur_close = last2[0]["close"]
+            item["last_price"] = cur_close
+            item["last_date"] = last2[0]["date"]
+            item["change_pct"] = round((cur_close / prev_close - 1) * 100, 2) if prev_close else None
+        elif len(last2) == 1:
+            item["last_price"] = last2[0]["close"]
+            item["last_date"] = last2[0]["date"]
+            item["change_pct"] = None
+        result.append(item)
     conn.close()
-    return [dict(r) for r in rows]
+    return result
 
 
 @router.get("/search")
