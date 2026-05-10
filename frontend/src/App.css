@@ -70,7 +70,7 @@
   --border-subtle: #ddd5c8;
   --text-primary: #2c2418;
   --text-secondary: #6a5e4e;
-  --text-muted: #8a7e6e;
+  --text-muted: #6e6254;
   --accent-red: #c9392c;
   --accent-red-bright: #d42f2f;
   --accent-green: #1e7a50;
@@ -84,17 +84,17 @@
   --scrollbar: #c8bfb0;
   --chart-bg-top: #f8f4ed;
   --chart-bg-bot: #f0ebe2;
-  --chart-grid: #ddd5c8;
-  --chart-grid-v: #e2dace;
-  --chart-sep: #c8bfb0;
-  --chart-axis: #ddd5c8;
-  --chart-axis-text: #8a7e6e;
-  --chart-axis-text-y: #7a6e5e;
-  --chart-vol-text: #8a7e6e;
-  --chart-ma5: #a07030;
-  --chart-ma5-glow: rgba(160, 112, 48, 0.12);
-  --chart-ma20: #8a7e6e;
-  --chart-ma20-glow: rgba(138, 126, 110, 0.08);
+  --chart-grid: #b8ad9c;
+  --chart-grid-v: #c4b8a8;
+  --chart-sep: #b8ad9c;
+  --chart-axis: #b8ad9c;
+  --chart-axis-text: #5e5244;
+  --chart-axis-text-y: #5a4e3e;
+  --chart-vol-text: #6e6254;
+  --chart-ma5: #8a5c20;
+  --chart-ma5-glow: rgba(138, 92, 32, 0.18);
+  --chart-ma20: #5e4e34;
+  --chart-ma20-glow: rgba(94, 78, 52, 0.14);
   --chart-wick-up: rgba(212, 47, 47, 0.45);
   --chart-wick-down: rgba(26, 138, 88, 0.45);
   --chart-body-up: #d42f2f;
@@ -104,10 +104,10 @@
   --chart-label-text: #5a4e3e;
   --chart-brush: #a07030;
   --chart-limit: #a07030;
-  --chart-vol-up: rgba(212, 47, 47, 0.35);
-  --chart-vol-up-end: rgba(212, 47, 47, 0.06);
-  --chart-vol-down: rgba(26, 138, 88, 0.30);
-  --chart-vol-down-end: rgba(26, 138, 88, 0.04);
+  --chart-vol-up: rgba(212, 47, 47, 0.50);
+  --chart-vol-up-end: rgba(212, 47, 47, 0.10);
+  --chart-vol-down: rgba(26, 138, 88, 0.45);
+  --chart-vol-down-end: rgba(26, 138, 88, 0.08);
 }
 
 /* ── 碧渊 Deep Azure ── */
@@ -143,10 +143,10 @@
   --chart-axis-text: #4a5a70;
   --chart-axis-text-y: #586880;
   --chart-vol-text: #3a4a60;
-  --chart-ma5: #6cb4ee;
-  --chart-ma5-glow: rgba(108, 180, 238, 0.12);
-  --chart-ma20: #4a6a88;
-  --chart-ma20-glow: rgba(74, 106, 136, 0.1);
+  --chart-ma5: #e8a850;
+  --chart-ma5-glow: rgba(232, 168, 80, 0.15);
+  --chart-ma20: #a08868;
+  --chart-ma20-glow: rgba(160, 136, 104, 0.1);
   --chart-wick-up: rgba(230, 57, 70, 0.45);
   --chart-wick-down: rgba(45, 147, 108, 0.45);
   --chart-body-up: #e63946;
@@ -156,10 +156,10 @@
   --chart-label-text: #7888a0;
   --chart-brush: #6cb4ee;
   --chart-limit: #6cb4ee;
-  --chart-vol-up: rgba(230, 57, 70, 0.35);
-  --chart-vol-up-end: rgba(230, 57, 70, 0.06);
-  --chart-vol-down: rgba(45, 147, 108, 0.30);
-  --chart-vol-down-end: rgba(45, 147, 108, 0.04);
+  --chart-vol-up: rgba(230, 57, 70, 0.50);
+  --chart-vol-up-end: rgba(230, 57, 70, 0.10);
+  --chart-vol-down: rgba(45, 147, 108, 0.45);
+  --chart-vol-down-end: rgba(45, 147, 108, 0.08);
 }
 
 * {
@@ -1723,6 +1723,17 @@ body {
   margin-bottom: 10px;
 }
 
+.fc-contradiction.warn {
+  margin: 6px 0 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent-gold) 15%, transparent);
+  border-left: 3px solid var(--accent-gold);
+  font-size: 12px;
+  color: var(--accent-gold);
+  line-height: 1.5;
+}
+
 .fc-similar-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -2347,9 +2358,9 @@ body {
 }
 
 .fc-bullet-item {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.75;
   padding-left: 14px;
   position: relative;
   word-wrap: break-word;

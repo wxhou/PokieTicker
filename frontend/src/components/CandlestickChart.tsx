@@ -419,10 +419,15 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       .attr('transform', `translate(0,${height})`)
       .call(d3.axisBottom(x).ticks(8).tickFormat((d) => {
           const dt = d instanceof Date ? d : new Date(Number(d));
+          const spanDays = (data[data.length - 1].date.getTime() - data[0].date.getTime()) / 86400000;
           if (lang === 'zh') {
-            return `${dt.getMonth() + 1}月`;
+            if (spanDays > 365) return `${dt.getFullYear()}/${dt.getMonth() + 1}`;
+            if (spanDays > 90) return `${dt.getMonth() + 1}月`;
+            return `${dt.getMonth() + 1}/${dt.getDate()}`;
           }
-          return d3.timeFormat('%b %y')(dt);
+          if (spanDays > 365) return d3.timeFormat('%b %Y')(dt);
+          if (spanDays > 90) return d3.timeFormat('%b')(dt);
+          return d3.timeFormat('%b %d')(dt);
         }))
       .selectAll('text')
       .style('font-size', '11px')
@@ -522,6 +527,31 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       .attr('fill', ma20Color).attr('font-size', '10px').attr('font-family', 'inherit')
       .text('MA20');
 
+    // Current price line (latest close)
+    const lastBar = data[data.length - 1];
+    const lastCloseY = y(lastBar.close);
+    const lastCloseColor = lastBar.close >= lastBar.open ? cv('--chart-body-up') : cv('--chart-body-down');
+    g.append('line')
+      .attr('x1', 0).attr('x2', width)
+      .attr('y1', lastCloseY).attr('y2', lastCloseY)
+      .attr('stroke', lastCloseColor)
+      .attr('stroke-width', 0.6)
+      .attr('stroke-dasharray', '3,3')
+      .attr('stroke-opacity', 0.5);
+    const priceTag = g.append('g').attr('transform', `translate(${width},${lastCloseY})`);
+    priceTag.append('rect')
+      .attr('x', 0).attr('y', -8)
+      .attr('width', 52).attr('height', 16)
+      .attr('rx', 3)
+      .attr('fill', lastCloseColor);
+    priceTag.append('text')
+      .attr('x', 26).attr('dy', 4)
+      .attr('text-anchor', 'middle')
+      .attr('fill', '#fff')
+      .attr('font-size', '10px')
+      .attr('font-family', '"SF Mono", "Fira Code", monospace')
+      .text(`¥${lastBar.close.toFixed(0)}`);
+
     // Candlesticks
     const candles = g.selectAll('.candle').data(data).enter().append('g').attr('class', 'candle');
 
@@ -594,7 +624,8 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       });
 
       // Stack particles downward from the close price (only in price area)
-      for (let i = 0; i < pArr.length; i++) {
+      const maxPerDay = 3;
+      for (let i = 0; i < Math.min(pArr.length, maxPerDay); i++) {
         const p = pArr[i];
         const radius = getParticleRadius(p.r, p.rt1);
         const candleLowY = y(ohlc.low);

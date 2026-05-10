@@ -476,6 +476,14 @@ function ForecastSection({
       {stats.count > 0 && (
         <div className="fc-similar-section">
           <div className="fc-section-title">{t('pred.similarPeriods', lang)} ({stats.count})</div>
+          {(() => {
+            const histUp = stats.up_ratio_5d > 0.5;
+            const modelDown = isUp === false;
+            const modelUp = isUp === true;
+            if (modelDown && histUp) return <div className="fc-contradiction warn">{t('pred.contradiction.bearishHistory', lang)}</div>;
+            if (modelUp && !histUp) return <div className="fc-contradiction warn">{t('pred.contradiction.bullishHistory', lang)}</div>;
+            return null;
+          })()}
           <div className="fc-similar-stats">
             <div className="fc-stat">
               <span className="fc-stat-label">{t('pred.upRatio5d', lang)}</span>
@@ -566,7 +574,7 @@ function PredictionCard({ label, pred, lang }: { label: string; pred: HorizonPre
       </div>
       {pred.top_drivers.length > 0 && (
         <div className="fc-drivers">
-          {pred.top_drivers.slice(0, 4).map((d) => (
+          {pred.top_drivers.slice(0, 3).map((d) => (
             <div key={d.name} className="fc-driver-row">
               <span className="fc-driver-name">{t(`feat.${d.name}`, lang)}</span>
               <div className="fc-driver-bar-track">

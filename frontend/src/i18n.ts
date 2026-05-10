@@ -51,6 +51,8 @@ const dict: Record<string, Record<Lang, string>> = {
   'pred.period': { zh: '日上涨率', en: 'D up ratio' },
   'pred.keywords': { zh: '关键主题', en: 'Key Themes' },
   'pred.forecastLabel': { zh: '预测', en: 'Forecast' },
+  'pred.contradiction.bearishHistory': { zh: '模型看空，但历史相似区间以涨居多，建议观望', en: 'Model bearish, but similar history leans up — consider holding' },
+  'pred.contradiction.bullishHistory': { zh: '模型看多，但历史相似区间以下跌居多，注意风险', en: 'Model bullish, but similar history leans down — note risks' },
 
   // Feature name translations
   'feat.n_articles': { zh: '新闻数', en: 'News Count' },
