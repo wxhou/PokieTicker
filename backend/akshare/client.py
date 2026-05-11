@@ -25,6 +25,7 @@ _CACHE_TTL = {
     "ohlc": 86400,    # 1 day
     "news": 600,       # 10 minutes
     "limit": 86400,    # 1 day
+    "quote": 30,       # 30 seconds for real-time quotes
 }
 
 
@@ -84,6 +85,11 @@ def init_cache_tables() -> None:
         );
         CREATE TABLE IF NOT EXISTS limit_cache (
             key_col    TEXT PRIMARY KEY,   -- e.g. "20260417,U"
+            data_json  TEXT,
+            fetched_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS quote_cache (
+            key_col    TEXT PRIMARY KEY,   -- e.g. "realtime"
             data_json  TEXT,
             fetched_at TEXT
         );
@@ -431,6 +437,51 @@ def fetch_limit_up_down(date: str, limit_type: str = "U") -> List[Dict[str, Any]
 
     _cache_set("limit", cache_key, result)
     return result
+
+
+# ── Real-time quotes ──────────────────────────────────────────────────────────
+
+def fetch_realtime_quotes(symbols: list[str]) -> list[dict[str, Any]]:
+    """Fetch real-time spot quotes for given symbols via AKShare (eastmoney).
+
+    symbols: list of resolved codes, e.g. ["600519.SH", "000001.SZ"]
+    Returns list of dicts with price, change, volume etc.
+    """
+    cache_key = "realtime"
+    cached = _cache_get("quote", cache_key)
+    if cached is not None:
+        plain_set = {s[:6] for s in symbols}
+        return [q for q in cached if q.get("code", "")[:6] in plain_set]
+
+    try:
+        df = _with_retry(ak.stock_zh_a_spot)
+    except Exception:
+        logger.exception("Real-time quote fetch failed")
+        return []
+
+    all_quotes = []
+    for _, r in df.iterrows():
+        code = str(r.get("代码", ""))
+        # Normalize: sh600519 → 600519, sz002594 → 002594
+        plain_code = code[2:] if len(code) == 8 and code[:2] in ("sh", "sz", "bj") else code
+        all_quotes.append({
+            "code": plain_code,
+            "name": str(r.get("名称", "")),
+            "price": float(r.get("最新价", 0) or 0),
+            "change_pct": float(r.get("涨跌幅", 0) or 0),
+            "change_amt": float(r.get("涨跌额", 0) or 0),
+            "volume": float(r.get("成交量", 0) or 0),
+            "amount": float(r.get("成交额", 0) or 0),
+            "open": float(r.get("今开", 0) or 0),
+            "high": float(r.get("最高", 0) or 0),
+            "low": float(r.get("最低", 0) or 0),
+            "prev_close": float(r.get("昨收", 0) or 0),
+        })
+
+    _cache_set("quote", cache_key, all_quotes)
+
+    plain_set = {s[:6] for s in symbols}
+    return [q for q in all_quotes if q.get("code", "") in plain_set]
 
 
 # ── Stock search ───────────────────────────────────────────────────────────────

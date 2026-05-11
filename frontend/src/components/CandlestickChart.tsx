@@ -46,6 +46,7 @@ interface ArticleSelection {
 
 interface Props {
   symbol: string;
+  livePrice?: number | null;
   lockedNewsId?: string | null;
   highlightedArticleIds?: string[] | null;
   highlightColor?: string | null;
@@ -99,7 +100,7 @@ const PERIOD_DAYS: Record<Period, number> = {
 const PERIOD_LABELS_ZH: Record<Period, string> = { '1W': '近1周', '1M': '近1月', '3M': '近3月', '1Y': '近1年', 'ALL': '全部' };
 const PERIOD_LABELS_EN: Record<Period, string> = { '1W': '1W', '1M': '1M', '3M': '3M', '1Y': '1Y', 'ALL': 'All' };
 
-export default function CandlestickChart({ symbol, lockedNewsId, highlightedArticleIds, highlightColor, onHover, onRangeSelect, onArticleSelect, onDayClick }: Props) {
+export default function CandlestickChart({ symbol, livePrice, lockedNewsId, highlightedArticleIds, highlightColor, onHover, onRangeSelect, onArticleSelect, onDayClick }: Props) {
   const { lang, theme } = useLang();
   const svgRef = useRef<SVGSVGElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -120,6 +121,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
   const marginRef = useRef({ top: 16, right: 40, bottom: 24, left: 48 });
   const langRef = useRef(lang);
   langRef.current = lang;
+  const livePriceLineRef = useRef<{ line: d3.Selection<SVGLineElement, unknown, null, undefined>; tag: d3.Selection<SVGGElement, unknown, null, undefined>; y: d3.ScaleLinear<number, number>; basePrice: number; tagX: number } | null>(null);
 
   // Keep refs in sync with props
   useEffect(() => {
@@ -134,6 +136,18 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
     highlightColorRef.current = highlightColor ?? null;
     drawParticles(hoveredParticleRef.current);
   }, [highlightedArticleIds, highlightColor]);
+
+  // Update price line position when livePrice changes
+  useEffect(() => {
+    const ref = livePriceLineRef.current;
+    if (!ref || livePrice == null || livePrice <= 0) return;
+    const newY = ref.y(livePrice);
+    const color = livePrice >= ref.basePrice ? '#e63946' : '#2d936c';
+    ref.line.attr('y1', newY).attr('y2', newY).attr('stroke', color);
+    ref.tag.attr('transform', `translate(${ref.tagX},${newY})`);
+    ref.tag.select('rect').attr('fill', color);
+    ref.tag.select('text').text(`¥${livePrice.toFixed(0)}`);
+  }, [livePrice]);
 
   const drawParticles = useCallback((highlight: PlacedParticle | null = null) => {
     const canvas = canvasRef.current;
@@ -531,7 +545,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
     const lastBar = data[data.length - 1];
     const lastCloseY = y(lastBar.close);
     const lastCloseColor = lastBar.close >= lastBar.open ? cv('--chart-body-up') : cv('--chart-body-down');
-    g.append('line')
+    const priceLine = g.append('line')
       .attr('x1', 0).attr('x2', width)
       .attr('y1', lastCloseY).attr('y2', lastCloseY)
       .attr('stroke', lastCloseColor)
@@ -551,6 +565,7 @@ export default function CandlestickChart({ symbol, lockedNewsId, highlightedArti
       .attr('font-size', '10px')
       .attr('font-family', '"SF Mono", "Fira Code", monospace')
       .text(`¥${lastBar.close.toFixed(0)}`);
+    livePriceLineRef.current = { line: priceLine, tag: priceTag, y, basePrice: lastBar.open, tagX: width };
 
     // Candlesticks
     const candles = g.selectAll('.candle').data(data).enter().append('g').attr('class', 'candle');

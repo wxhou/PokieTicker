@@ -64,6 +64,7 @@ function App() {
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const [chartRect, setChartRect] = useState<DOMRect | undefined>(undefined);
   const [connError, setConnError] = useState(false);
+  const [isLive, setIsLive] = useState(false);
 
   useEffect(() => {
     axios
@@ -91,6 +92,70 @@ function App() {
         }
       })
       .catch(() => setConnError(true));
+  }, []);
+
+  // Real-time quotes polling during market hours
+  useEffect(() => {
+    function isMarketOpen(): boolean {
+      const now = new Date();
+      const day = now.getDay();
+      if (day === 0 || day === 6) return false;
+      const h = now.getHours();
+      const m = now.getMinutes();
+      const t = h * 60 + m;
+      // 9:30-11:30 or 13:00-15:00 CST
+      return (t >= 570 && t <= 690) || (t >= 780 && t <= 900);
+    }
+
+    if (!isMarketOpen()) return;
+
+    // Initial fetch
+    axios
+      .get('/api/stocks/quotes')
+      .then((res) => {
+        const quotes = res.data as { code: string; price: number; change_pct: number }[];
+        if (!quotes || quotes.length === 0) return;
+        setIsLive(true);
+        setTickerChanges((prev) => {
+          const next = { ...prev };
+          for (const q of quotes) {
+            if (q.price <= 0) continue;
+            const resolved =
+              q.code.startsWith('6') ? `${q.code}.SH` :
+              q.code.startsWith('0') || q.code.startsWith('3') ? `${q.code}.SZ` :
+              q.code;
+            next[resolved] = { price: q.price, change: q.change_pct };
+          }
+          return next;
+        });
+      })
+      .catch(() => {});
+
+    const interval = setInterval(() => {
+      if (!isMarketOpen()) { setIsLive(false); return; }
+      axios
+        .get('/api/stocks/quotes')
+        .then((res) => {
+          const quotes = res.data as { code: string; price: number; change_pct: number }[];
+          if (!quotes || quotes.length === 0) return;
+          setIsLive(true);
+          setTickerChanges((prev) => {
+            const next = { ...prev };
+            for (const q of quotes) {
+              if (q.price <= 0) continue;
+              const resolved =
+                q.code.startsWith('6') ? `${q.code}.SH` :
+                q.code.startsWith('0') || q.code.startsWith('3') ? `${q.code}.SZ` :
+                q.code;
+              next[resolved] = { price: q.price, change: q.change_pct };
+            }
+            return next;
+          });
+        })
+        .catch(() => { setIsLive(false); });
+    }, 30000);
+
+    return () => { clearInterval(interval); setIsLive(false); };
   }, []);
 
   // Update chartRect when range is selected (for popup positioning)
@@ -261,6 +326,7 @@ function App() {
           onSelect={handleSelectSymbol}
           onAdd={handleAddTicker}
         />
+        {isLive && <span className="live-indicator" title={isZh ? '行情实时更新中' : 'Live quotes'} />}
         {selectedRange ? (
           <div className="header-ohlc">
             <span className="ohlc-date">{selectedRange.startDate} ~ {selectedRange.endDate}</span>
@@ -331,6 +397,7 @@ function App() {
             <>
               <CandlestickChart
                 symbol={selectedSymbol}
+                livePrice={tickerChanges[selectedSymbol]?.price ?? null}
                 lockedNewsId={lockedArticle?.newsId ?? null}
                 highlightedArticleIds={activeCategoryIds.length > 0 ? activeCategoryIds : null}
                 highlightColor={activeCategoryColor}

@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta
 
-from backend.akshare.client import fetch_ohlc, fetch_news, search_stocks, resolve_code
+from backend.akshare.client import fetch_ohlc, fetch_news, search_stocks, resolve_code, fetch_realtime_quotes
 from backend.database import get_conn
 from backend.pipeline.alignment import align_news_for_symbol
 
@@ -47,6 +47,18 @@ def list_stocks():
         result.append(item)
     conn.close()
     return result
+
+
+@router.get("/quotes")
+def get_realtime_quotes():
+    """Get real-time quotes for all tracked stocks."""
+    conn = get_conn()
+    symbols = [r["symbol"] for r in conn.execute("SELECT symbol FROM tickers").fetchall()]
+    conn.close()
+    if not symbols:
+        return []
+    quotes = fetch_realtime_quotes(symbols)
+    return quotes
 
 
 @router.get("/search")

@@ -361,6 +361,23 @@ body {
   min-width: 0;
 }
 
+.live-indicator {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3db87e;
+  box-shadow: 0 0 6px rgba(61, 184, 126, 0.6);
+  animation: live-pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+  margin-left: -4px;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 /* Ticker tab bar */
 .ticker-tabs {
   display: flex;
