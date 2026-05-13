@@ -273,7 +273,11 @@ export default function PredictionPanel({ symbol }: Props) {
 
         {ns && (
           <span className="pred-news-badge">
-            {ns.total}{t('pred.news', lang)} · {ns.positive}+ {ns.negative}-
+            {ns.total}{t('pred.news', lang)}
+            {ns.positive + ns.negative === 0
+              ? ` · ${t('pred.sentimentPending', lang)}`
+              : ` · ${ns.positive}+ ${ns.negative}-`
+            }
           </span>
         )}
 
@@ -416,7 +420,7 @@ function ForecastSection({
             const sentimentLabel = article.sentiment === 'positive' ? t('pred.positive', lang)
               : article.sentiment === 'negative' ? t('pred.negative', lang)
               : article.sentiment === 'neutral' ? t('pred.neutral', lang)
-              : t('pred.na', lang);
+              : t('pred.pendingAnalysis', lang);
             return (
               <div key={article.news_id} className={`fc-impact-card fc-impact-${retClass}`}>
                 <div className="fc-impact-header">

@@ -3,11 +3,6 @@ import axios from 'axios';
 import { useLang } from '../LanguageContext';
 import { t } from '../i18n';
 
-interface Ticker {
-  symbol: string;
-  name: string;
-}
-
 interface TickerInfo {
   symbol: string;
   name: string;
@@ -21,28 +16,36 @@ interface Props {
   onAdd: (symbol: string) => void;
 }
 
-export default function StockSelector({ activeTickers, selectedSymbol, tickerChanges, onSelect, onAdd }: Props) {
+function BeijingClock() {
+  const [time, setTime] = useState(() => formatBJT(new Date()));
+
+  useEffect(() => {
+    const id = setInterval(() => setTime(formatBJT(new Date())), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return <span className="bj-clock">{time}</span>;
+}
+
+function formatBJT(now: Date): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).formatToParts(now);
+  const get = (t: Intl.DateTimeFormatPartTypes) => parts.find(p => p.type === t)?.value ?? '';
+  return `${get('year')}/${get('month')}/${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
+}
+
+export default function StockSelector({ onAdd }: Props) {
   const { lang } = useLang();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Ticker[]>([]);
+  const [results, setResults] = useState<TickerInfo[]>([]);
   const [showSearch, setShowSearch] = useState(false);
-  const [tickerNames, setTickerNames] = useState<Record<string, string>>({});
   const searchRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Fetch names for active tickers
-  useEffect(() => {
-    axios.get('/api/stocks')
-      .then((res) => {
-        const map: Record<string, string> = {};
-        for (const t of res.data) {
-          map[t.symbol] = t.name;
-        }
-        setTickerNames(map);
-      })
-      .catch(console.error);
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -66,7 +69,7 @@ export default function StockSelector({ activeTickers, selectedSymbol, tickerCha
       try {
         const res = await axios.get(`/api/stocks/search?q=${encodeURIComponent(q)}`);
         setResults(res.data);
-        setShowSearch(true);
+        setShowSearch(res.data.length > 0);
       } catch {
         setResults([]);
       }
@@ -76,49 +79,12 @@ export default function StockSelector({ activeTickers, selectedSymbol, tickerCha
   function handlePick(t: TickerInfo) {
     setQuery('');
     setShowSearch(false);
-    if (!activeTickers.includes(t.symbol)) {
-      onAdd(t.symbol);
-    }
-    onSelect(t.symbol);
-  }
-
-  function displayName(sym: string) {
-    return tickerNames[sym] || sym;
-  }
-
-  function displayCode(sym: string) {
-    return sym.replace(/\.(SH|SZ)$/, '');
+    onAdd(t.symbol);
   }
 
   return (
-    <div className="stock-selector">
-      <div className="ticker-tabs">
-        {activeTickers.map((sym) => (
-          <button
-            key={sym}
-            className={`ticker-tab ${sym === selectedSymbol ? 'active' : ''}`}
-            onClick={() => onSelect(sym)}
-            title={`${tickerNames[sym] || sym} ${sym}`}
-          >
-            <span className="ticker-tab-name">{displayName(sym)}</span>
-            <span className="ticker-tab-code">{displayCode(sym)}</span>
-            {tickerChanges?.[sym]?.change != null && (
-              <span className={`ticker-tab-change ${tickerChanges[sym].change! >= 0 ? 'up' : 'down'}`}>
-                {tickerChanges[sym].change! >= 0 ? '+' : ''}{tickerChanges[sym].change!.toFixed(2)}%
-              </span>
-            )}
-          </button>
-        ))}
-        <button
-          className="ticker-tab ticker-tab-add"
-          onClick={() => inputRef.current?.focus()}
-          title={t('selector.addTitle', lang)}
-        >
-          +
-        </button>
-      </div>
-
-      <div className="search-wrapper" ref={searchRef}>
+    <div className="stock-selector" ref={searchRef}>
+      <div className="search-wrapper">
         <input
           ref={inputRef}
           type="text"
@@ -138,6 +104,7 @@ export default function StockSelector({ activeTickers, selectedSymbol, tickerCha
           </ul>
         )}
       </div>
+      <BeijingClock />
     </div>
   );
 }

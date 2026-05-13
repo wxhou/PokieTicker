@@ -23,6 +23,8 @@ const dict: Record<string, Record<Lang, string>> = {
   'pred.negative': { zh: '利空', en: 'negative' },
   'pred.neutral': { zh: '中性', en: 'neutral' },
   'pred.na': { zh: 'N/A', en: 'N/A' },
+  'pred.sentimentPending': { zh: '情绪分析中', en: 'Sentiment pending' },
+  'pred.pendingAnalysis': { zh: '待分析', en: 'Pending' },
   'pred.section.7day': { zh: '7日预测', en: '7-Day Forecast' },
   'pred.section.30day': { zh: '30日预测', en: '30-Day Forecast' },
   'pred.analysis': { zh: '分析', en: 'Analysis' },

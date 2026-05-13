@@ -36,6 +36,7 @@ function App() {
   const { lang, setLang, isZh, theme, setTheme } = useLang();
   const [route, setRoute] = useState<Route>('main');
   const [activeTickers, setActiveTickers] = useState<string[]>([]);
+  const [tickerNames, setTickerNames] = useState<Record<string, string>>({});
   const [tickerChanges, setTickerChanges] = useState<Record<string, { price: number; change: number | null }>>({});
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
@@ -65,20 +66,46 @@ function App() {
   const [chartRect, setChartRect] = useState<DOMRect | undefined>(undefined);
   const [connError, setConnError] = useState(false);
   const [isLive, setIsLive] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(140);
+  const sidebarResizing = useRef(false);
+  const sidebarStartX = useRef(0);
+  const sidebarStartW = useRef(0);
+
+  function onSidebarResizeStart(e: React.MouseEvent) {
+    e.preventDefault();
+    sidebarResizing.current = true;
+    sidebarStartX.current = e.clientX;
+    sidebarStartW.current = sidebarWidth;
+    const onMove = (ev: MouseEvent) => {
+      if (!sidebarResizing.current) return;
+      const delta = ev.clientX - sidebarStartX.current;
+      setSidebarWidth(Math.min(300, Math.max(100, sidebarStartW.current + delta)));
+    };
+    const onUp = () => {
+      sidebarResizing.current = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
 
   useEffect(() => {
     axios
       .get('/api/stocks')
       .then((res) => {
         setConnError(false);
-        const tickers = (res.data as { symbol: string; last_ohlc_fetch: boolean; last_price?: number; change_pct?: number | null }[])
+        const tickers = (res.data as { symbol: string; last_ohlc_fetch: boolean; last_price?: number; change_pct?: number | null; name?: string }[])
           .filter((t) => t.last_ohlc_fetch);
         const symbols = tickers.map((t) => t.symbol);
         setActiveTickers(symbols);
+        const names: Record<string, string> = {};
         const changes: Record<string, { price: number; change: number | null }> = {};
         for (const t of tickers) {
+          names[t.symbol] = t.name || t.symbol;
           if (t.last_price != null) changes[t.symbol] = { price: t.last_price, change: t.change_pct ?? null };
         }
+        setTickerNames(names);
         setTickerChanges(changes);
         // Priority: URL param > localStorage > first ticker
         const urlSymbol = new URLSearchParams(window.location.search).get('symbol');
@@ -311,6 +338,14 @@ function App() {
     );
   }
 
+  function displayName(sym: string) {
+    return tickerNames[sym] || sym.replace(/\.(SH|SZ)$/, '');
+  }
+
+  function displayCode(sym: string) {
+    return sym.replace(/\.(SH|SZ)$/, '');
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -376,11 +411,6 @@ function App() {
           >
             {route === 'portfolio' ? t('nav.back', lang) : t('nav.portfolio', lang)}
           </button>
-          <a href="https://github.com/wxhou/PokieTicker" target="_blank" rel="noopener noreferrer" className="header-link header-github">
-            <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-            </svg>
-          </a>
         </div>
       </header>
 
@@ -390,35 +420,60 @@ function App() {
             <Portfolio onBack={() => setRoute('main')} />
           </div>
         ) : (
-        <div className="chart-area" ref={chartAreaRef}>
-          {connError ? (
-            <div className="chart-placeholder">{t('chart.connError', lang)}</div>
-          ) : selectedSymbol ? (
-            <>
-              <CandlestickChart
-                symbol={selectedSymbol}
-                livePrice={tickerChanges[selectedSymbol]?.price ?? null}
-                lockedNewsId={lockedArticle?.newsId ?? null}
-                highlightedArticleIds={activeCategoryIds.length > 0 ? activeCategoryIds : null}
-                highlightColor={activeCategoryColor}
-                onHover={handleHover}
-                onRangeSelect={handleRangeSelect}
-                onArticleSelect={handleArticleSelect}
-                onDayClick={handleDayClick}
-              />
-              {selectedRange && !rangeQuestion && (
-                <RangeQueryPopup
-                  range={selectedRange}
-                  chartRect={chartRect}
-                  onAsk={handleRangeAsk}
-                  onClose={() => setSelectedRange(null)}
+        <>
+          <aside className="stock-sidebar" style={{ width: sidebarWidth }}>
+            <div className="sidebar-resize-handle" onMouseDown={onSidebarResizeStart} />
+            <div className="sidebar-list">
+              {activeTickers.map((sym) => {
+                const change = tickerChanges[sym]?.change;
+                return (
+                  <button
+                    key={sym}
+                    className={`sidebar-item ${sym === selectedSymbol ? 'active' : ''}`}
+                    onClick={() => handleSelectSymbol(sym)}
+                  >
+                    <span className="sidebar-item-name">{displayName(sym)}</span>
+                    <span className="sidebar-item-code">{displayCode(sym)}</span>
+                    {change != null && (
+                      <span className={`sidebar-item-change ${change >= 0 ? 'up' : 'down'}`}>
+                        {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+          <div className="chart-area" ref={chartAreaRef}>
+            {connError ? (
+              <div className="chart-placeholder">{t('chart.connError', lang)}</div>
+            ) : selectedSymbol ? (
+              <>
+                <CandlestickChart
+                  symbol={selectedSymbol}
+                  livePrice={tickerChanges[selectedSymbol]?.price ?? null}
+                  lockedNewsId={lockedArticle?.newsId ?? null}
+                  highlightedArticleIds={activeCategoryIds.length > 0 ? activeCategoryIds : null}
+                  highlightColor={activeCategoryColor}
+                  onHover={handleHover}
+                  onRangeSelect={handleRangeSelect}
+                  onArticleSelect={handleArticleSelect}
+                  onDayClick={handleDayClick}
                 />
-              )}
-            </>
-          ) : (
-            <div className="chart-placeholder">{t('chart.placeholder', lang)}</div>
-          )}
-        </div>
+                {selectedRange && !rangeQuestion && (
+                  <RangeQueryPopup
+                    range={selectedRange}
+                    chartRect={chartRect}
+                    onAsk={handleRangeAsk}
+                    onClose={() => setSelectedRange(null)}
+                  />
+                )}
+              </>
+            ) : (
+              <div className="chart-placeholder">{t('chart.placeholder', lang)}</div>
+            )}
+          </div>
+        </>
         )}
         {selectedSymbol && (
           <>

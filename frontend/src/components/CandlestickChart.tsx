@@ -639,7 +639,7 @@ export default function CandlestickChart({ symbol, livePrice, lockedNewsId, high
       });
 
       // Stack particles downward from the close price (only in price area)
-      const maxPerDay = 3;
+      const maxPerDay = 6;
       for (let i = 0; i < Math.min(pArr.length, maxPerDay); i++) {
         const p = pArr[i];
         const radius = getParticleRadius(p.r, p.rt1);
