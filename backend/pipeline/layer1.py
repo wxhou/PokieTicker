@@ -1,11 +1,11 @@
-"""Layer 1: MiniMax/DeepSeek AI — 50 articles packed into 1 API call.
+"""Layer 1: MiniMax M2.5 AI — batch sentiment analysis.
 
-Strategy (Chinese A-share version):
+Strategy:
 1. Keyword extraction: use jieba Chinese segmentation to extract relevant
    sentences from long descriptions (>500 chars), keeping sentences that
    contain stock-related keywords
 2. Pack up to 50 articles into a single prompt → 1 API call
-3. MiniMax first, DeepSeek fallback
+3. MiniMax M2.5 via Anthropic-compatible endpoint
 4. Get back a compact JSON array in Chinese
 """
 

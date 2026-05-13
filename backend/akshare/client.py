@@ -338,15 +338,15 @@ def fetch_news_bulk(
     max_pages: int = 5,
     page_size: int = 100,
 ) -> List[Dict[str, Any]]:
-    """Fetch bulk historical news for an A-share stock via eastmoney search API.
+    """Fetch bulk news for an A-share stock.
 
-    Bypasses AKShare's stock_news_em (which hardcodes pageSize=10) by calling
-    the eastmoney search API directly with larger pageSize and pagination.
+    Primary source: AKShare's stock_news_em (~10 recent articles).
+    Supplementary: eastmoney search API (may fail, that's ok).
 
     Args:
         symbol: Stock code, e.g. "600519" or "600519.SH"
-        max_pages: Maximum number of pages to fetch (default 5 = ~500 articles)
-        page_size: Articles per page (default 100)
+        max_pages: Ignored (kept for API compatibility)
+        page_size: Ignored (kept for API compatibility)
 
     Returns:
         List of news dicts with keys: news_id, symbol, title, content, published, source, url
@@ -360,48 +360,55 @@ def fetch_news_bulk(
         return cached
 
     all_articles: List[Dict[str, Any]] = []
-    seen_codes = set()
+    seen_titles = set()
 
-    for page in range(1, max_pages + 1):
-        try:
-            items = _with_retry(_em_search_page, plain, page, page_size)
-        except Exception as e:
-            logger.warning("fetch_news_bulk: page %d failed for %s: %s", page, plain, e)
-            break
-
-        if not items:
-            break
-
-        new_count = 0
-        for item in items:
-            code = item.get("code", "")
-            if code in seen_codes:
+    # 1. Fetch via AKShare stock_news_em (reliable, ~10 recent articles)
+    try:
+        rows = _with_retry(ak.stock_news_em, symbol=plain)
+        for _, r in rows.iterrows():
+            title = str(r.get("新闻标题", "")).strip()
+            if not title or title in seen_titles:
                 continue
-            seen_codes.add(code)
-
+            seen_titles.add(title)
+            pub_time = str(r.get("发布时间", ""))
             all_articles.append({
-                "news_id":  f"{plain}_{item.get('date', '')}",
+                "news_id":  f"{plain}_{pub_time}",
                 "symbol":   plain,
-                "title":    str(item.get("title", "")).replace("<em>", "").replace("</em>", ""),
-                "content":  str(item.get("content", "")).replace("<em>", "").replace("</em>", "").replace("\u3000", "").replace("\r\n", " "),
-                "published": str(item.get("date", "")),
-                "source":   str(item.get("mediaName", "")),
-                "url":      f"http://finance.eastmoney.com/a/{code}.html" if code else "",
+                "title":    title,
+                "content":  str(r.get("新闻内容", "")),
+                "published": pub_time,
+                "source":   str(r.get("文章来源", "")),
+                "url":      str(r.get("新闻链接", "")),
             })
-            new_count += 1
+        logger.info("fetch_news_bulk: %s → %d articles from stock_news_em", plain, len(all_articles))
+    except Exception as e:
+        logger.warning("fetch_news_bulk: stock_news_em failed for %s: %s", plain, e)
 
-        logger.info("fetch_news_bulk: %s page %d → %d new (total %d)", plain, page, new_count, len(all_articles))
-
-        # If page returned fewer than page_size, we've reached the end
-        if len(items) < page_size:
-            break
-
-        # Small delay between pages to be polite
-        time.sleep(0.3)
+    # 2. Try eastmoney search API for additional articles (may fail)
+    try:
+        items = _with_retry(_em_search_page, plain, 1, page_size)
+        if items:
+            for item in items:
+                title = str(item.get("title", "")).replace("<em>", "").replace("</em>", "").strip()
+                if not title or title in seen_titles:
+                    continue
+                seen_titles.add(title)
+                code = item.get("code", "")
+                all_articles.append({
+                    "news_id":  f"{plain}_{item.get('date', '')}",
+                    "symbol":   plain,
+                    "title":    title,
+                    "content":  str(item.get("content", "")).replace("<em>", "").replace("</em>", "").replace("　", "").replace("\r\n", " "),
+                    "published": str(item.get("date", "")),
+                    "source":   str(item.get("mediaName", "")),
+                    "url":      f"http://finance.eastmoney.com/a/{code}.html" if code else "",
+                })
+            logger.info("fetch_news_bulk: %s → %d total after search supplement", plain, len(all_articles))
+    except Exception as e:
+        logger.warning("fetch_news_bulk: search API failed for %s (non-fatal): %s", plain, e)
 
     _cache_set("news", cache_key, all_articles)
     return all_articles
-
 
 # ── Limit-up / limit-down ──────────────────────────────────────────────────────
 
@@ -535,3 +542,128 @@ def stock_info_a_code_name(code: str) -> dict | None:
         if s["code"] == code:
             return {"name": s["name"]}
     return None
+
+
+# ── Individual stock notices (公告) ────────────────────────────────────────────
+
+def fetch_notices(symbol: str, days: int = 180) -> List[Dict[str, Any]]:
+    """Fetch individual stock notices/announcements from eastmoney.
+
+    Args:
+        symbol: Stock code, e.g. "600519" or "600519.SH"
+        days: Only import notices published within this many days (default 180)
+
+    Returns:
+        List of notice dicts with keys: id, title, description, published_utc,
+        article_url, source_type, publisher
+    """
+    ts_code = resolve_code(symbol)
+    plain = ts_code[:6]
+
+    cache_key = f"notices,{plain},{days}"
+    cached = _cache_get("news", cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        df = _with_retry(ak.stock_individual_notice_report, security=plain)
+    except Exception:
+        logger.exception("fetch_notices failed for %s", plain)
+        return []
+
+    from datetime import datetime, timedelta
+    cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    result = []
+    for _, r in df.iterrows():
+        pub_date = str(r.get("公告日期", ""))[:10]
+        if pub_date < cutoff:
+            continue
+        title = str(r.get("公告标题", "")).strip()
+        if not title:
+            continue
+        notice_type = str(r.get("公告类型", ""))
+        url = str(r.get("网址", ""))
+        result.append({
+            "id": f"notice_{plain}_{pub_date}_{hash(title) & 0xFFFF:04x}",
+            "title": title,
+            "description": f"[{notice_type}] {title}",
+            "published_utc": pub_date,
+            "article_url": url,
+            "source_type": "notice",
+            "publisher": str(r.get("名称", "")),
+        })
+
+    _cache_set("news", cache_key, result)
+    return result
+
+
+# ── Flash news (财联社快讯) ────────────────────────────────────────────────────
+
+def fetch_flash_news() -> List[Dict[str, Any]]:
+    """Fetch real-time financial flash news from CLS (财联社).
+
+    Returns:
+        List of flash news dicts with source_type='flash'.
+    """
+    cache_key = "flash_news"
+    cached = _cache_get("news", cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        df = _with_retry(ak.stock_info_global_cls)
+    except Exception:
+        logger.exception("fetch_flash_news failed")
+        return []
+
+    from datetime import datetime
+    result = []
+    for _, r in df.iterrows():
+        title = str(r.get("标题", "")).strip()
+        content = str(r.get("内容", "")).strip()
+        date = str(r.get("发布日期", ""))
+        time_ = str(r.get("发布时间", ""))
+        if not title:
+            continue
+        published = f"{date} {time_}" if time_ else date
+        result.append({
+            "id": f"flash_{date}_{hash(title) & 0xFFFF:04x}",
+            "title": title,
+            "description": content or title,
+            "published_utc": published,
+            "article_url": "",
+            "source_type": "flash",
+            "publisher": "财联社",
+        })
+
+    _cache_set("news", cache_key, result)
+    return result
+
+
+def match_flash_to_tickers(
+    flash_articles: List[Dict[str, Any]],
+    tickers: List[Dict[str, str]],
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Match flash news articles to stock tickers by keyword matching.
+
+    Args:
+        flash_articles: Output of fetch_flash_news()
+        tickers: List of {"code": "600519", "name": "贵州茅台"} dicts
+
+    Returns:
+        Dict mapping resolved symbol -> list of matched articles
+    """
+    result: Dict[str, List[Dict[str, Any]]] = {}
+    for art in flash_articles:
+        text = f"{art.get('title', '')} {art.get('description', '')}"
+        for t in tickers:
+            code = t["code"]
+            name = t["name"]
+            if name and name in text:
+                resolved = resolve_code(code)
+                if resolved not in result:
+                    result[resolved] = []
+                result[resolved].append(art)
+                break
+    return result

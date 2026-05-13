@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS news_raw (
     tickers_json  TEXT,
     insights_json TEXT,
     image_url     TEXT,
-    simhash       TEXT
+    simhash       TEXT,
+    source_type   TEXT NOT NULL DEFAULT 'news'
 );
 
 CREATE TABLE IF NOT EXISTS news_ticker (
@@ -171,9 +172,21 @@ def get_conn() -> sqlite3.Connection:
     return conn
 
 
+_MIGRATIONS = [
+    "ALTER TABLE news_raw ADD COLUMN source_type TEXT NOT NULL DEFAULT 'news'",
+    "CREATE INDEX IF NOT EXISTS idx_news_raw_source_type ON news_raw(source_type)",
+]
+
+
 def init_db():
     conn = get_conn()
     conn.executescript(SCHEMA)
+    for sql in _MIGRATIONS:
+        try:
+            conn.execute(sql)
+        except sqlite3.OperationalError:
+            pass
+    conn.commit()
     conn.close()
     print(f"Database initialized at {settings.database_path}")
 

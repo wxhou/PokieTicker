@@ -47,6 +47,7 @@ def get_news_for_date(
             """SELECT na.news_id, na.trade_date, na.published_utc,
                       na.ret_t0, na.ret_t1, na.ret_t3, na.ret_t5, na.ret_t10,
                       nr.title, nr.description, nr.publisher, nr.article_url, nr.image_url,
+                      nr.source_type,
                       l1.relevance, l1.key_discussion, l1.chinese_summary,
                       l1.sentiment, l1.reason_growth, l1.reason_decrease
                FROM news_aligned na
@@ -62,6 +63,7 @@ def get_news_for_date(
             """SELECT na.news_id, na.trade_date, na.published_utc,
                       na.ret_t0, na.ret_t1, na.ret_t3, na.ret_t5, na.ret_t10,
                       nr.title, nr.description, nr.publisher, nr.article_url, nr.image_url,
+                      nr.source_type,
                       l1.relevance, l1.key_discussion, l1.chinese_summary,
                       l1.sentiment, l1.reason_growth, l1.reason_decrease
                FROM news_aligned na
@@ -91,6 +93,7 @@ def get_news_for_range(
         """SELECT na.news_id, na.trade_date, na.published_utc,
                   na.ret_t0, na.ret_t1, na.ret_t3, na.ret_t5, na.ret_t10,
                   nr.title, nr.description, nr.publisher, nr.article_url, nr.image_url,
+                  nr.source_type,
                   l1.relevance, l1.key_discussion, l1.chinese_summary,
                   l1.sentiment, l1.reason_growth, l1.reason_decrease
            FROM news_aligned na
