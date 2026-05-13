@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pokieticker-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./pokieticker.db:/app/pokieticker.db
+      - ./.env:/app/.env:ro
+    environment:
+      - DATABASE_PATH=/app/pokieticker.db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pokieticker-frontend
+    ports:
+      - "7777:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
