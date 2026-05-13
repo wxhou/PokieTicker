@@ -5,13 +5,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
-    polygon_api_key: str = ""
-    anthropic_api_key: str = ""
     # China data
     tushare_token: str = ""
-    # AI
+    polygon_api_key: str = ""
+    # AI (MiniMax via Anthropic-compatible endpoint)
     minimax_api_key: str = ""
-    deepseek_api_key: str = ""
+    # Auth
+    jwt_secret: str = "dev-secret-change-in-production"
     # Database
     database_path: str = str(PROJECT_ROOT / "pokieticker.db")
 

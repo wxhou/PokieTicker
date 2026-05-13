@@ -1,7 +1,7 @@
 """Layer 2: On-demand deep analysis.
 
 Triggered when user clicks a news article. Cached in layer2_results.
-Uses MiniMax first, DeepSeek fallback.
+Uses MiniMax M2.5 via Anthropic SDK.
 """
 
 import json
@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from backend.config import settings
 from backend.database import get_conn
 from backend.ai.provider import UnifiedSentimentProvider
+from backend.ai.minimax import _get_client, _extract_text_from_response
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ def analyze_article(news_id: str, symbol: str) -> Dict[str, Any]:
     if not discussion and title:
         try:
             discussion, growth_reasons, decrease_reasons = _generate_analysis(
-                title, desc, symbol, provider
+                title, desc, symbol
             )
         except Exception as e:
             logger.error("Layer2 analysis failed for %s: %s", news_id, e)
@@ -109,10 +110,8 @@ def analyze_article(news_id: str, symbol: str) -> Dict[str, Any]:
     }
 
 
-def _generate_analysis(
-    title: str, desc: str, symbol: str, provider: UnifiedSentimentProvider
-) -> tuple:
-    """Generate detailed analysis with robust JSON parsing."""
+def _generate_analysis(title: str, desc: str, symbol: str) -> tuple:
+    """Generate detailed analysis using Anthropic SDK + MiniMax."""
     prompt = f"""分析以下新闻对股票 {symbol} 的影响，以JSON格式返回详细分析。
 
 新闻标题：{title}
@@ -128,17 +127,10 @@ JSON格式：
 只返回JSON，不要包含任何其他文字。"""
 
     try:
-        results = _call_direct_analysis(prompt, symbol)
-    except Exception:
-        try:
-            results = _call_direct_analysis(prompt, symbol, use_deepseek=True)
-        except Exception as e:
-            logger.error("Both providers failed in layer2: %s", e)
-            return (
-                "分析生成失败，请稍后重试。",
-                "",
-                "",
-            )
+        results = _call_analysis(prompt, symbol)
+    except Exception as e:
+        logger.error("Analysis call failed in layer2: %s", e)
+        return ("分析生成失败，请稍后重试。", "", "")
 
     return (
         results.get("discussion", ""),
@@ -147,55 +139,16 @@ JSON格式：
     )
 
 
-def _call_direct_analysis(
-    prompt: str, symbol: str, use_deepseek: bool = False
-) -> Dict[str, Any]:
-    """Call provider directly with a custom prompt and robust JSON parsing."""
-    if use_deepseek:
-        from backend.ai.deepseek import DeepSeekProvider
-        prov = DeepSeekProvider()
-        try:
-            with __import__("httpx").Client(timeout=15) as client:
-                resp = client.post(
-                    "https://api.deepseek.com/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {prov.api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": "deepseek-chat",
-                        "messages": [{"role": "user", "content": prompt}],
-                        "temperature": 0.1,
-                        "max_tokens": 1024,
-                    },
-                )
-                resp.raise_for_status()
-                text = resp.json()["choices"][0]["message"]["content"]
-        except Exception as e:
-            raise RuntimeError(f"DeepSeek call failed: {e}") from e
-    else:
-        from backend.ai.minimax import MiniMaxProvider
-        prov = MiniMaxProvider()
-        try:
-            with __import__("httpx").Client(timeout=10) as client:
-                resp = client.post(
-                    "https://api.minimaxi.com/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {prov.api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": "MiniMax-M2.5",
-                        "messages": [{"role": "user", "content": prompt}],
-                        "temperature": 0.1,
-                        "max_tokens": 1024,
-                    },
-                )
-                resp.raise_for_status()
-                text = resp.json()["choices"][0]["message"]["content"]
-        except Exception as e:
-            raise RuntimeError(f"MiniMax call failed: {e}") from e
-
+def _call_analysis(prompt: str, symbol: str) -> Dict[str, Any]:
+    """Call MiniMax M2.5 via Anthropic SDK with a custom prompt."""
+    client = _get_client()
+    response = client.messages.create(
+        model="MiniMax-M2.5",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.1,
+    )
+    text = _extract_text_from_response(response)
     return _robust_json_parse(text)
 
 
@@ -279,9 +232,6 @@ def _strip_trailing_commas(s: str) -> str:
 
 def generate_story(symbol: str, csv_content: str) -> str:
     """Generate an AI story about stock price movements."""
-    # Use unified provider
-    provider = UnifiedSentimentProvider()
-
     prompt = f"""根据以下{symbol}的OHLC数据和相关新闻，生成一份有吸引力的投资故事。
 
 数据摘要：
@@ -299,25 +249,14 @@ def generate_story(symbol: str, csv_content: str) -> str:
 请直接返回HTML内容。"""
 
     try:
-        from backend.ai.minimax import MiniMaxProvider
-        prov = MiniMaxProvider()
-        import httpx
-        with httpx.Client(timeout=15) as client:
-            resp = client.post(
-                "https://api.minimaxi.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {prov.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "MiniMax-M2.5",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.3,
-                    "max_tokens": 4096,
-                },
-            )
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
+        client = _get_client()
+        response = client.messages.create(
+            model="MiniMax-M2.5",
+            max_tokens=4096,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+        )
+        return _extract_text_from_response(response)
     except Exception as e:
         logger.error("generate_story failed: %s", e)
         return f"<p>故事生成失败，请稍后重试。</p><p>错误: {e}</p>"
@@ -402,7 +341,7 @@ def analyze_range(
 只返回JSON。"""
 
     try:
-        results = _call_direct_analysis(prompt, symbol)
+        results = _call_analysis(prompt, symbol)
     except Exception as e:
         logger.error("analyze_range failed: %s", e)
         results = {

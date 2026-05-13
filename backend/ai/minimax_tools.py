@@ -1,9 +1,7 @@
-"""MiniMax Token Plan tools: realtime news search via web search."""
+"""MiniMax Token Plan tools: realtime news search via Anthropic SDK."""
 
 import base64
 import hashlib
-import httpx
-import io
 import json
 import logging
 import re
@@ -12,14 +10,12 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from backend.config import settings
+from backend.ai.minimax import _get_client, _extract_text_from_response
 from backend.database import get_conn
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = "https://api.minimaxi.com/v1"
-TIMEOUT = 30.0
 CACHE_TTL_HOURS = 6
-VL_TIMEOUT = 60.0
 VL_MODEL = "MiniMax-VL-01"
 VL_PROMPT = """你是一个A股持仓识别助手。请从截图中提取所有股票信息。
 
@@ -132,34 +128,26 @@ class MiniMaxTools:
 
         stock_name = stock[0]
 
-        # Call MiniMax M2.5 for news search
-        with httpx.Client(timeout=TIMEOUT) as client:
-            resp = client.post(
-                f"{BASE_URL}/text/chatcompletion_v2",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "MiniMax-M2.5",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": (
-                                f"搜索{stock_name}({symbol})近{days}天最新A股财经新闻。"
-                                f"请返回JSON数组格式，只返回与{symbol}直接相关的新闻：\n"
-                                f'[{{"title":"新闻标题","snippet":"100字以内摘要","date":"YYYY-MM-DD","url":"文章链接"}}]\n'
-                                f"如果没有找到相关新闻，返回空数组 []。"
-                            ),
-                        }
-                    ],
-                    "temperature": 0.1,
-                    "max_tokens": 2048,
-                },
+        # Call MiniMax M2.5 for news search via Anthropic SDK
+        prompt = (
+            f"搜索{stock_name}({symbol})近{days}天最新A股财经新闻。"
+            f"请返回JSON数组格式，只返回与{symbol}直接相关的新闻：\n"
+            f'[{{"title":"新闻标题","snippet":"100字以内摘要","date":"YYYY-MM-DD","url":"文章链接"}}]\n'
+            f"如果没有找到相关新闻，返回空数组 []。"
+        )
+
+        try:
+            client = _get_client(self.api_key)
+            response = client.messages.create(
+                model="MiniMax-M2.5",
+                max_tokens=2048,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
             )
-            resp.raise_for_status()
-            data = resp.json()
-            text = data["choices"][0]["message"]["content"]
+            text = _extract_text_from_response(response)
+        except Exception as e:
+            logger.error("search_realtime_news failed: %s", e)
+            return []
 
         results = self._parse_search_response(text, symbol)
 
@@ -179,6 +167,68 @@ class MiniMaxTools:
             conn.close()
 
         return filtered
+
+    def parse_screenshot(self, image_bytes: bytes) -> list[dict]:
+        """Parse stock holdings from a screenshot using MiniMax VL model.
+
+        Args:
+            image_bytes: Raw image bytes (jpg/png/webp)
+
+        Returns:
+            List of dicts with keys: stock_code, stock_name, quantity, source, confidence, in_database
+        """
+        # Encode image to base64
+        b64 = base64.b64encode(image_bytes).decode("utf-8")
+        # Detect mime type from first bytes
+        if image_bytes[:3] == b"\xff\xd8\xff":
+            mime = "image/jpeg"
+        elif image_bytes[:4] == b"\x89PNG":
+            mime = "image/png"
+        elif image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
+            mime = "image/webp"
+        else:
+            mime = "image/jpeg"  # default
+
+        try:
+            client = _get_client(self.api_key)
+            response = client.messages.create(
+                model=VL_MODEL,
+                max_tokens=2048,
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": mime,
+                                "data": b64,
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": VL_PROMPT,
+                        },
+                    ],
+                }],
+                temperature=0.1,
+            )
+            text = _extract_text_from_response(response)
+        except Exception as e:
+            logger.error("parse_screenshot failed: %s", e)
+            return []
+
+        # Parse VL JSON response
+        holdings = self._parse_vl_response(text)
+
+        # Check in_database for each stock
+        for h in holdings:
+            conn = get_conn()
+            exists = conn.execute("SELECT 1 FROM tickers WHERE symbol = ?", (h["stock_code"],)).fetchone()
+            conn.close()
+            h["in_database"] = exists is not None
+
+        return holdings
 
     def _parse_search_response(self, text: str, symbol: str) -> list[dict]:
         """Parse JSON search results using robust parser."""
@@ -222,63 +272,6 @@ class MiniMaxTools:
             if not is_dup:
                 result.append(item)
         return result
-
-    def parse_screenshot(self, image_bytes: bytes) -> list[dict]:
-        """Parse stock holdings from a screenshot using MiniMax VL model.
-
-        Args:
-            image_bytes: Raw image bytes (jpg/png/webp)
-
-        Returns:
-            List of dicts with keys: stock_code, stock_name, quantity, source, confidence, in_database
-        """
-        # Encode image to base64
-        b64 = base64.b64encode(image_bytes).decode("utf-8")
-        # Detect mime type from first bytes
-        if image_bytes[:3] == b"\xff\xd8\xff":
-            mime = "image/jpeg"
-        elif image_bytes[:4] == b"\x89PNG":
-            mime = "image/png"
-        elif image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
-            mime = "image/webp"
-        else:
-            mime = "image/jpeg"  # default
-
-        image_url = f"data:{mime};base64,{b64}"
-
-        # Call MiniMax VL endpoint
-        with httpx.Client(timeout=VL_TIMEOUT) as client:
-            resp = client.post(
-                f"{BASE_URL}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": VL_MODEL,
-                    "messages": [
-                        {"role": "user", "content": [{"type": "image_url", "image_url": {"url": image_url}}]},
-                        {"role": "user", "content": VL_PROMPT},
-                    ],
-                    "temperature": 0.1,
-                    "max_tokens": 2048,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            text = data["choices"][0]["message"]["content"]
-
-        # Parse VL JSON response
-        holdings = self._parse_vl_response(text)
-
-        # Check in_database for each stock
-        for h in holdings:
-            conn = get_conn()
-            exists = conn.execute("SELECT 1 FROM tickers WHERE symbol = ?", (h["stock_code"],)).fetchone()
-            conn.close()
-            h["in_database"] = exists is not None
-
-        return holdings
 
     def _parse_vl_response(self, text: str) -> list[dict]:
         """Parse VL JSON output into holdings list."""

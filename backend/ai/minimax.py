@@ -1,7 +1,8 @@
 """MiniMax M2.5 sentiment analysis provider.
 
-Endpoint: https://api.minimaxi.com/v1
+Uses Anthropic SDK with MiniMax's Anthropic-compatible endpoint.
 Model: MiniMax-M2.5
+Endpoint: https://api.minimaxi.com/anthropic/
 """
 
 import json
@@ -9,14 +10,31 @@ import re
 import jieba
 from typing import Any, Dict, List, Optional
 
-import httpx
+import anthropic
 
 from backend.config import settings
 from backend.ai.base import SentimentProvider, SentimentResult
 
 MODEL = "MiniMax-M2.5"
-BASE_URL = "https://api.minimaxi.com/v1"
-TIMEOUT = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0)
+BASE_URL = "https://api.minimaxi.com/anthropic/"
+MAX_TOKENS = 8192
+
+
+def _get_client(api_key: Optional[str] = None) -> anthropic.Anthropic:
+    """Create an Anthropic client pointed at MiniMax's Anthropic-compatible endpoint."""
+    key = api_key or settings.minimax_api_key
+    if not key:
+        raise RuntimeError("MINIMAX_API_KEY not configured")
+    return anthropic.Anthropic(api_key=key, base_url=BASE_URL)
+
+
+def _extract_text_from_response(response: anthropic.types.Message) -> str:
+    """Extract text content from an Anthropic Message response, skipping thinking blocks."""
+    texts = []
+    for block in response.content:
+        if block.type == "text":
+            texts.append(block.text)
+    return "\n".join(texts)
 
 
 class MiniMaxProvider(SentimentProvider):
@@ -24,37 +42,27 @@ class MiniMaxProvider(SentimentProvider):
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or settings.minimax_api_key
+
     @property
     def name(self) -> str:
         return "MiniMax-M2.5"
 
     def analyze(self, articles: List[Dict[str, Any]], symbol: str) -> List[SentimentResult]:
-        """Analyze articles using MiniMax M2.5."""
+        """Analyze articles using MiniMax M2.5 via Anthropic SDK."""
         if not self.api_key:
-            raise RuntimeError("MiniMax API key not configured")
+            raise RuntimeError("MINIMAX_API_KEY not configured")
 
         prompt = self._build_prompt(symbol, articles)
+        client = _get_client(self.api_key)
 
-        with httpx.Client(timeout=TIMEOUT) as client:
-            resp = client.post(
-                f"{BASE_URL}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": MODEL,
-                    "messages": [
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.1,
-                    "max_tokens": 8192,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            text = data["choices"][0]["message"]["content"]
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+        )
 
+        text = _extract_text_from_response(response)
         return self._parse_response(text, articles)
 
     def _build_prompt(self, symbol: str, articles: List[Dict[str, Any]]) -> str:
@@ -92,9 +100,9 @@ class MiniMaxProvider(SentimentProvider):
         text = text.strip()
 
         # Strip MiniMax M2.5 thinking block (starts with ◈ or similar)
-        # M2.5 may output <think>...</think> or ◈...◈ thinking before the JSON
+        # M2.5 may output ahlen...ahlen or ◈...◈ thinking before the JSON
         thinking_end = -1
-        for tag in ["</think>", "◈\n", "```\n"]:
+        for tag in ["ahlen", "◈\n", "```\n"]:
             idx = text.rfind(tag)
             if idx >= 0:
                 thinking_end = max(thinking_end, idx + len(tag))
@@ -199,7 +207,7 @@ def _extract_chinese_sentences(text: str, symbol: str) -> str:
     }
 
     # Detect if text is primarily Chinese
-    chinese_chars = sum(1 for c in text if "\u4e00" <= c <= "\u9fff")
+    chinese_chars = sum(1 for c in text if "一" <= c <= "鿿")
     is_chinese = chinese_chars / max(len(text), 1) > 0.3
 
     if is_chinese:

@@ -18,7 +18,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT settings
-JWT_SECRET = settings.anthropic_api_key or "dev-secret-change-in-production"
+JWT_SECRET = settings.jwt_secret
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = 24 * 7  # 7 days
 
