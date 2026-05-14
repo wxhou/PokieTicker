@@ -24,6 +24,12 @@ from backend.akshare.client import (
 from backend.pipeline.alignment import align_news_for_symbol
 from backend.pipeline.layer0 import run_layer0
 from backend.pipeline.layer1 import run_layer1
+from backend.event_linking import (
+    is_policy_event,
+    link_notice_event,
+    link_flash_event,
+    link_policy_event,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -116,21 +122,79 @@ def _insert_flash_news(matched: dict) -> int:
     return new_count
 
 
-def _run_pipeline_for_symbol(symbol: str):
+async def _run_pipeline_for_symbol(symbol: str):
     """Run alignment + layer0 + layer1 for a symbol."""
     try:
         align_news_for_symbol(symbol)
     except Exception:
         logger.exception("Alignment failed for %s", symbol)
+    await asyncio.sleep(0)
     try:
         run_layer0(symbol)
     except Exception:
         logger.exception("Layer0 failed for %s", symbol)
         return
+    await asyncio.sleep(0)
     try:
         run_layer1(symbol)
     except Exception:
         logger.exception("Layer1 failed for %s", symbol)
+
+
+def _collect_events_from_articles(articles: List[dict], category: str, symbol: str = ""):
+    """Create events from newly inserted articles and link to stocks."""
+    conn = get_conn()
+    count = 0
+    for art in articles:
+        news_id = art.get("news_id") or art.get("id")
+        if not news_id:
+            continue
+        event_id = f"evt_{news_id}"
+        # Skip if event already exists
+        exists = conn.execute("SELECT 1 FROM events WHERE id = ?", (event_id,)).fetchone()
+        if exists:
+            continue
+
+        title = art.get("title", "").strip()
+        if not title:
+            continue
+
+        desc = art.get("content") or art.get("description") or ""
+        pub_date = art.get("published") or art.get("published_utc") or ""
+        # Normalize date to YYYY-MM-DD
+        event_date = pub_date[:10] if len(pub_date) >= 10 else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        # Determine impact from layer1 if available
+        impact = None
+        layer1 = conn.execute(
+            "SELECT sentiment FROM layer1_results WHERE news_id = ?", (news_id,)
+        ).fetchone()
+        if layer1 and layer1["sentiment"]:
+            impact = layer1["sentiment"]
+
+        conn.execute(
+            """INSERT OR IGNORE INTO events (id, title, description, event_date, category, impact, source)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (event_id, title, desc[:500], event_date, category, impact, art.get("source", "")),
+        )
+
+        # Link to stocks
+        if category == "notice" and symbol:
+            link_notice_event(conn, event_id, symbol)
+        elif category == "flash":
+            link_flash_event(conn, event_id, title, desc)
+        elif category == "news" and is_policy_event(title, desc):
+            # Update category to policy
+            conn.execute("UPDATE events SET category = 'policy' WHERE id = ?", (event_id,))
+            link_policy_event(conn, event_id, title, desc)
+
+        count += 1
+
+    conn.commit()
+    conn.close()
+    if count > 0:
+        logger.info("Scheduler: collected %d events (category=%s)", count, category)
+    return count
 
 
 async def _fetch_news_loop():
@@ -147,13 +211,14 @@ async def _fetch_news_loop():
                     if new_count > 0:
                         symbols_with_new.append(t["symbol"])
                         logger.info("Scheduler: %d new news for %s", new_count, t["symbol"])
+                        _collect_events_from_articles(articles, "news", t["symbol"])
                 except Exception:
                     logger.exception("Scheduler: news fetch failed for %s", t["symbol"])
                     continue
 
             # Run pipeline for symbols with new articles
             for symbol in symbols_with_new:
-                _run_pipeline_for_symbol(symbol)
+                await _run_pipeline_for_symbol(symbol)
 
         except Exception:
             logger.exception("Scheduler: news loop error")
@@ -173,10 +238,12 @@ async def _fetch_notices_loop():
                     new_count = _insert_news_bulk(t["symbol"], notices, source_type="notice")
                     if new_count > 0:
                         logger.info("Scheduler: %d new notices for %s", new_count, t["symbol"])
-                        _run_pipeline_for_symbol(t["symbol"])
+                        _collect_events_from_articles(notices, "notice", t["symbol"])
+                        await _run_pipeline_for_symbol(t["symbol"])
                 except Exception:
                     logger.exception("Scheduler: notice fetch failed for %s", t["symbol"])
                     continue
+                await asyncio.sleep(0)
 
         except Exception:
             logger.exception("Scheduler: notices loop error")
@@ -205,8 +272,9 @@ async def _fetch_flash_loop():
             new_count = _insert_flash_news(matched)
             if new_count > 0:
                 logger.info("Scheduler: %d new flash news matched", new_count)
+                _collect_events_from_articles(flash_articles, "flash")
                 for symbol in matched:
-                    _run_pipeline_for_symbol(symbol)
+                    await _run_pipeline_for_symbol(symbol)
 
         except Exception:
             logger.exception("Scheduler: flash loop error")
@@ -264,9 +332,92 @@ async def _fetch_ohlc_loop():
         await asyncio.sleep(OHLC_INTERVAL)
 
 
+def _backfill_events():
+    """One-time backfill: create events from existing news_raw data."""
+    conn = get_conn()
+    # Only backfill if events table is empty
+    count = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+    if count > 0:
+        conn.close()
+        logger.info("Scheduler: events table already has %d rows, skipping backfill", count)
+        return
+
+    logger.info("Scheduler: backfilling events from existing news_raw...")
+    rows = conn.execute(
+        "SELECT id, title, description, published_utc, source_type FROM news_raw WHERE title IS NOT NULL"
+    ).fetchall()
+
+    ticker_names = {}
+    for r in conn.execute("SELECT symbol, name FROM tickers WHERE last_ohlc_fetch IS NOT NULL").fetchall():
+        ticker_names[r["symbol"]] = r["name"] or ""
+
+    event_count = 0
+    for row in rows:
+        news_id = row["id"]
+        event_id = f"evt_{news_id}"
+        title = (row["title"] or "").strip()
+        if not title:
+            continue
+
+        desc = row["description"] or ""
+        pub_date = (row["published_utc"] or "")[:10]
+        if len(pub_date) < 10:
+            continue
+        source_type = row["source_type"] or "news"
+
+        # Determine category
+        if source_type == "notice":
+            category = "notice"
+        elif source_type == "flash":
+            category = "flash"
+        elif is_policy_event(title, desc):
+            category = "policy"
+        else:
+            continue  # Skip non-policy news (too many, not useful as events)
+
+        # Get sentiment from layer1
+        impact = None
+        layer1 = conn.execute(
+            "SELECT sentiment FROM layer1_results WHERE news_id = ?", (news_id,)
+        ).fetchone()
+        if layer1 and layer1["sentiment"]:
+            impact = layer1["sentiment"]
+
+        conn.execute(
+            """INSERT OR IGNORE INTO events (id, title, description, event_date, category, impact, source)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (event_id, title, desc[:500], pub_date, category, impact, ""),
+        )
+
+        # Link to stocks
+        if category == "notice":
+            # Find the symbol from news_ticker
+            nt = conn.execute(
+                "SELECT symbol FROM news_ticker WHERE news_id = ?", (news_id,)
+            ).fetchone()
+            if nt:
+                link_notice_event(conn, event_id, nt["symbol"])
+        elif category == "flash":
+            link_flash_event(conn, event_id, title, desc)
+        elif category == "policy":
+            link_policy_event(conn, event_id, title, desc)
+
+        event_count += 1
+
+    conn.commit()
+    conn.close()
+    logger.info("Scheduler: backfilled %d events", event_count)
+
+
 async def scheduler_main():
     """Entry point: start all background fetch loops."""
     logger.info("Scheduler: starting background fetch loops")
+    # Backfill events from existing data (one-time)
+    try:
+        _backfill_events()
+    except Exception:
+        logger.exception("Scheduler: event backfill failed")
+
     # Initial delay to let the app fully start
     await asyncio.sleep(10)
 

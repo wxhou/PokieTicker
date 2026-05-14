@@ -192,16 +192,25 @@ body {
   align-items: center;
   gap: 20px;
   flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
-.app-header h1, .brand-name {
+.brand-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.brand-divider {
   font-family: var(--font-display);
   font-size: 22px;
   font-weight: 900;
@@ -536,7 +545,7 @@ body {
 .app-main {
   flex: 1;
   display: grid;
-  grid-template-columns: auto 1fr 400px;
+  grid-template-columns: auto 1fr minmax(280px, 400px);
   grid-template-rows: 52vh 1fr;
   grid-template-areas:
     "sidebar chart      prediction"
@@ -3454,4 +3463,219 @@ body {
   background: var(--bg-card);
   color: var(--text-secondary);
   border: 1px solid var(--border);
+}
+
+/* ── Event Calendar ── */
+
+.events-full {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.event-calendar {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.event-calendar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.event-nav-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.event-nav-btn:hover {
+  background: var(--bg-elevated);
+}
+
+.event-calendar-date {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  text-align: center;
+}
+
+.event-view-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.event-view-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.event-view-btn.active {
+  background: var(--accent-primary);
+  color: var(--bg-base);
+}
+
+.event-calendar-body {
+  min-height: 200px;
+}
+
+.event-loading,
+.event-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px 0;
+  font-size: 14px;
+}
+
+.event-date-section {
+  margin-bottom: 20px;
+}
+
+.event-date-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 8px;
+}
+
+.event-category-group {
+  margin-bottom: 12px;
+}
+
+.event-category-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.event-category-count {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.event-item {
+  border-left: 2px solid var(--border);
+  margin-left: 4px;
+  margin-bottom: 2px;
+}
+
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 0 4px 4px 0;
+}
+.event-row:hover {
+  background: var(--bg-elevated);
+}
+
+.event-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.event-title {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-impact {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.event-impact-positive {
+  background: rgba(230, 57, 70, 0.15);
+  color: var(--accent-red-bright);
+}
+.event-impact-negative {
+  background: rgba(45, 147, 108, 0.15);
+  color: var(--accent-green-bright);
+}
+.event-impact-neutral {
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+}
+
+.event-stock-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.event-stocks {
+  padding: 4px 10px 8px 30px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.event-stock-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.event-stock-row:hover {
+  background: var(--bg-elevated);
+}
+
+.event-stock-name {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.event-stock-code {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.event-stock-sentiment {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.event-stock-reason {
+  color: var(--text-secondary);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 }

@@ -225,6 +225,7 @@ const dict: Record<string, Record<Lang, string>> = {
   'si.reUpload': { zh: '重新上传', en: 'Re-upload' },
 
   // Footer
+  'nav.events': { zh: '事件日历', en: 'Events' },
   'footer.disclaimer': {
     zh: '涨讯仅供信息参考，不构成投资建议。股市有风险，投资需谨慎。本平台不具备证券投资咨询资质。',
     en: 'ZhangXun is for informational purposes only, not investment advice. Stock markets carry risks. This platform does not hold securities advisory qualifications.',

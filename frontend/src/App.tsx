@@ -10,6 +10,7 @@ import RangeNewsPanel from './components/RangeNewsPanel';
 import SimilarDaysPanel from './components/SimilarDaysPanel';
 import PredictionPanel from './components/PredictionPanel';
 import Portfolio from './components/Portfolio';
+import EventCalendar from './components/EventCalendar';
 import { Agentation } from 'agentation';
 import { LanguageProvider, useLang } from './LanguageContext';
 import { t } from './i18n';
@@ -30,7 +31,7 @@ interface ArticleSelection {
   date: string;
 }
 
-type Route = 'main' | 'portfolio';
+type Route = 'main' | 'portfolio' | 'events';
 
 function App() {
   const { lang, setLang, isZh, theme, setTheme } = useLang();
@@ -350,7 +351,7 @@ function App() {
     <div className="app">
       <header className="app-header">
         <div className="header-left">
-          <h1 className="brand-name">涨讯</h1>
+          <img src="/logo.svg" alt="涨讯" className="brand-logo" />
           <div className="brand-divider" />
           <span className="brand-sub">{t('brand.sub', lang)}</span>
         </div>
@@ -411,6 +412,12 @@ function App() {
           >
             {route === 'portfolio' ? t('nav.back', lang) : t('nav.portfolio', lang)}
           </button>
+          <button
+            className={`nav-btn ${route === 'events' ? 'active' : ''}`}
+            onClick={() => setRoute(route === 'events' ? 'main' : 'events')}
+          >
+            {route === 'events' ? t('nav.back', lang) : t('nav.events', lang)}
+          </button>
         </div>
       </header>
 
@@ -418,6 +425,15 @@ function App() {
         {route === 'portfolio' ? (
           <div className="portfolio-full">
             <Portfolio onBack={() => setRoute('main')} />
+          </div>
+        ) : route === 'events' ? (
+          <div className="events-full">
+            <EventCalendar
+              onSelectSymbol={(sym) => {
+                handleSelectSymbol(sym);
+                setRoute('main');
+              }}
+            />
           </div>
         ) : (
         <>

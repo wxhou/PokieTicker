@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect x="1" y="1" width="30" height="30" rx="6" fill="#1a1714" stroke="#2e2b27" stroke-width="1"/>
+  <polyline points="6,22 12,16 16,18 22,10 26,6" fill="none" stroke="#c9a96e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="26,6 22,8 24,12" fill="#c9a96e"/>
+  <circle cx="26" cy="6" r="2" fill="#c9392c"/>
+  <text x="16" y="29" text-anchor="middle" font-family="serif" font-weight="900" font-size="8" fill="#eae5db">涨讯</text>
+</svg>

@@ -161,6 +161,26 @@ CREATE TABLE IF NOT EXISTS limit_cache (
     data_json     TEXT,
     fetched_at    TEXT
 );
+
+CREATE TABLE IF NOT EXISTS events (
+    id          TEXT PRIMARY KEY,
+    title       TEXT NOT NULL,
+    description TEXT,
+    event_date  TEXT NOT NULL,
+    category    TEXT NOT NULL,
+    impact      TEXT,
+    source      TEXT,
+    created_at  TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_events_date ON events(event_date);
+CREATE INDEX IF NOT EXISTS idx_events_category ON events(category);
+
+CREATE TABLE IF NOT EXISTS event_stock (
+    event_id    TEXT NOT NULL,
+    symbol      TEXT NOT NULL,
+    PRIMARY KEY (event_id, symbol),
+    FOREIGN KEY (event_id) REFERENCES events(id)
+);
 """
 
 

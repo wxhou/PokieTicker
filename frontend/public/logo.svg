@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1714"/>
+      <stop offset="100%" stop-color="#0c0b0a"/>
+    </linearGradient>
+    <linearGradient id="arrow" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#c9a96e"/>
+      <stop offset="100%" stop-color="#e6c87a"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect x="4" y="4" width="112" height="112" rx="22" fill="url(#bg)" stroke="#2e2b27" stroke-width="2"/>
+  <!-- Upward trend line / arrow -->
+  <polyline points="22,78 42,62 56,70 78,38 98,22" fill="none" stroke="url(#arrow)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Arrow head -->
+  <polygon points="98,22 84,26 92,36" fill="#c9a96e"/>
+  <!-- Red accent dot at peak -->
+  <circle cx="98" cy="22" r="5" fill="#c9392c"/>
+  <!-- 涨 character -->
+  <text x="60" y="100" text-anchor="middle" font-family="'Noto Serif SC','Songti SC',serif" font-weight="900" font-size="28" fill="#eae5db">涨讯</text>
+</svg>

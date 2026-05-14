@@ -5,7 +5,7 @@ import logging
 
 from backend.database import init_db
 from backend.api.routers import stocks, news, analysis, predict
-from backend.api.routers import auth, portfolio, pipeline
+from backend.api.routers import auth, portfolio, pipeline, events
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,7 @@ app.include_router(predict.router, prefix="/api/predict", tags=["predict"])
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(portfolio.router, tags=["portfolio"])
 app.include_router(pipeline.router, prefix="/api/pipeline", tags=["pipeline"])
+app.include_router(events.router, prefix="/api/events", tags=["events"])
 
 
 @app.on_event("startup")
