@@ -17,6 +17,7 @@ export default function MobileApp() {
   const [tickerNames, setTickerNames] = useState<Record<string, string>>({});
   const [tickerChanges, setTickerChanges] = useState<Record<string, { price: number; change: number | null }>>({});
   const [selectedSymbol, setSelectedSymbol] = useState('');
+  const [symbolKey, setSymbolKey] = useState(0);
 
   useEffect(() => {
     axios
@@ -87,6 +88,7 @@ export default function MobileApp() {
     setSelectedSymbol(symbol);
     localStorage.setItem(LAST_SYMBOL_KEY, symbol);
     setRoute('home');
+    setSymbolKey(k => k + 1);
   }, []);
 
   function renderContent() {
@@ -94,6 +96,7 @@ export default function MobileApp() {
       case 'home':
         return (
           <MobileHome
+            key={symbolKey}
             selectedSymbol={selectedSymbol}
             tickerChanges={tickerChanges}
             tickerNames={tickerNames}

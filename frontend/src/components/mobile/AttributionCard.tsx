@@ -25,10 +25,36 @@ const SOURCE_LABELS: Record<string, Record<string, string>> = {
   policy: { zh: '政策', en: 'Policy' },
 };
 
-function sentimentIcon(s: string | null): string {
-  if (s === 'positive') return '📈';
-  if (s === 'negative') return '📉';
-  return '📊';
+function IconArrowUp() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+      <polyline points="16 7 22 7 22 13" />
+    </svg>
+  );
+}
+
+function IconArrowDown() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 17 13.5 8.5 8.5 13.5 2 7" />
+      <polyline points="16 17 22 17 22 11" />
+    </svg>
+  );
+}
+
+function IconMinus() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+function getSentimentIcon(s: string | null) {
+  if (s === 'positive') return <IconArrowUp />;
+  if (s === 'negative') return <IconArrowDown />;
+  return <IconMinus />;
 }
 
 function sentimentClass(s: string | null): string {
@@ -59,9 +85,26 @@ export default function AttributionCard({ symbol, newsRef }: { symbol: string; n
   if (loading) {
     return (
       <div className="attribution-card attribution-skeleton">
-        <div className="attr-skeleton-line" />
-        <div className="attr-skeleton-line short" />
-        <div className="attr-skeleton-line" />
+        <div className="attr-skeleton-header">
+          <div className="attr-skeleton-badge" />
+          <div className="attr-skeleton-change" />
+        </div>
+        <div className="attr-skeleton-reasons">
+          <div className="attr-skeleton-reason">
+            <div className="attr-skeleton-icon" />
+            <div className="attr-skeleton-content">
+              <div className="attr-skeleton-title" />
+              <div className="attr-skeleton-badge-sm" />
+            </div>
+          </div>
+          <div className="attr-skeleton-reason">
+            <div className="attr-skeleton-icon" />
+            <div className="attr-skeleton-content">
+              <div className="attr-skeleton-title short" />
+              <div className="attr-skeleton-badge-sm" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -95,7 +138,7 @@ export default function AttributionCard({ symbol, newsRef }: { symbol: string; n
               }
             }}
           >
-            <span className="attr-reason-icon">{sentimentIcon(r.sentiment)}</span>
+            <span className="attr-reason-icon">{getSentimentIcon(r.sentiment)}</span>
             <div className="attr-reason-content">
               <span className="attr-reason-title">{r.title}</span>
               {r.source_type && (

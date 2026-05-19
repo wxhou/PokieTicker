@@ -231,7 +231,7 @@ const dict: Record<string, Record<Lang, string>> = {
   'mobile.home': { zh: '首页', en: 'Home' },
   'mobile.events': { zh: '事件', en: 'Events' },
   'mobile.portfolio': { zh: '组合', en: 'Portfolio' },
-  'mobile.settings': { zh: '更多', en: 'More' },
+  'mobile.settings': { zh: '设置', en: 'Settings' },
   'mobile.search': { zh: '搜索股票...', en: 'Search stock...' },
   'mobile.whyMove': { zh: '涨跌归因', en: 'Why it moved' },
   'mobile.viewDetail': { zh: '查看详情', en: 'View detail' },

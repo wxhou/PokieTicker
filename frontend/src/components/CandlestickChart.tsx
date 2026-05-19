@@ -108,6 +108,7 @@ export default function CandlestickChart({ symbol, livePrice, lockedNewsId, high
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [period, setPeriod] = useState<Period>('3M');
+  const [hoveredArticleId, setHoveredArticleId] = useState<string | null>(null);
   const rawOhlcRef = useRef<OHLCRow[]>([]);
   const rawParticlesRef = useRef<Particle[]>([]);
 
@@ -123,11 +124,66 @@ export default function CandlestickChart({ symbol, livePrice, lockedNewsId, high
   langRef.current = lang;
   const livePriceLineRef = useRef<{ line: d3.Selection<SVGLineElement, unknown, null, undefined>; tag: d3.Selection<SVGGElement, unknown, null, undefined>; y: d3.ScaleLinear<number, number>; basePrice: number; tagX: number } | null>(null);
 
-  // Keep refs in sync with props
+  // Draw hover ring animation when article is hovered
   useEffect(() => {
-    lockedNewsIdRef.current = lockedNewsId ?? null;
-    drawParticles(hoveredParticleRef.current);
-  }, [lockedNewsId]);
+    if (!hoveredArticleId) return;
+    const placed = placedRef.current;
+    const target = placed.find(p => p.id === hoveredArticleId);
+    if (!target) return;
+
+    // Trigger a redraw with the hovered particle for glow effect
+    drawParticles(target);
+
+    // Animate the particle scale
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+
+    let startTime = performance.now();
+    const duration = 300;
+
+    function animate(currentTime: number) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const scale = 1 + 0.3 * Math.sin(progress * Math.PI);
+
+      // Redraw all particles, but scale the hovered one
+      drawParticlesAnimated(target, scale, ctx, dpr);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        drawParticles(null);
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }, [hoveredArticleId]);
+
+  const drawParticlesAnimated = (target: PlacedParticle, scale: number, ctx: CanvasRenderingContext2D, dpr: number) => {
+    ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
+    const placed = placedRef.current;
+    for (const p of placed) {
+      const isTarget = p === target;
+      const radius = isTarget ? p.radius * scale : p.radius;
+
+      ctx.beginPath();
+      ctx.arc(p.px * dpr, p.py * dpr, radius * dpr, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = isTarget ? 1 : 0.3;
+      ctx.fill();
+
+      if (isTarget) {
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 15 * dpr;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    }
+    ctx.globalAlpha = 1;
+  };
 
   useEffect(() => {
     highlightedIdsRef.current = highlightedArticleIds && highlightedArticleIds.length > 0
@@ -275,7 +331,9 @@ export default function CandlestickChart({ symbol, livePrice, lockedNewsId, high
     const cv = (name: string) => cs.getPropertyValue(name).trim();
 
     const fullWidth = container.clientWidth;
-    const fullHeight = container.clientHeight || 600;
+    // Use getBoundingClientRect for accurate rendered height
+    const rect = container.getBoundingClientRect();
+    const fullHeight = rect.height > 0 ? rect.height : 600;
     const margin = marginRef.current;
     const width = fullWidth - margin.left - margin.right;
     const height = fullHeight - margin.top - margin.bottom;
@@ -871,6 +929,7 @@ export default function CandlestickChart({ symbol, livePrice, lockedNewsId, high
 
         if (hit !== hoveredParticleRef.current) {
           hoveredParticleRef.current = hit;
+          setHoveredArticleId(hit?.id ?? null);
           drawParticles(hit);
 
           const tooltip = tooltipRef.current;

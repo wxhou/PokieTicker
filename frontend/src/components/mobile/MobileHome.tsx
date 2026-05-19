@@ -61,12 +61,7 @@ export default function MobileHome({
         </div>
       )}
 
-      {/* Attribution card */}
-      {selectedSymbol && (
-        <AttributionCard symbol={selectedSymbol} newsRef={newsRef} />
-      )}
-
-      {/* Chart */}
+      {/* Chart - moved before attribution for better visual hierarchy */}
       <div className="mobile-chart-area">
         {selectedSymbol ? (
           <CandlestickChart
@@ -83,6 +78,11 @@ export default function MobileHome({
           <div className="mobile-chart-placeholder">{t('chart.placeholder', lang)}</div>
         )}
       </div>
+
+      {/* Attribution card - after chart */}
+      {selectedSymbol && (
+        <AttributionCard symbol={selectedSymbol} newsRef={newsRef} />
+      )}
 
       {/* News section */}
       {selectedSymbol && (
