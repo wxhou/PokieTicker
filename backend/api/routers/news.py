@@ -1,8 +1,6 @@
 from fastapi import APIRouter, Query
 from typing import Optional
 
-from backend.ai.minimax_tools import MiniMaxTools
-
 from backend.database import get_conn
 
 router = APIRouter()
@@ -13,24 +11,12 @@ def get_realtime_news(
     symbol: str,
     days: int = Query(7, ge=1, le=30),
 ):
-    """Get supplementary realtime news for a symbol from MiniMax search.
+    """Supplementary realtime news endpoint (currently disabled).
 
-    Returns deduplicated news from MiniMax web search, cached for 6 hours.
+    MiniMax M2.5 is a chat model and cannot perform web searches.
+    This endpoint returns an empty response until a proper search API is integrated.
     """
-    tools = MiniMaxTools()
-    try:
-        results = tools.search_realtime_news(symbol.upper(), days)
-    except Exception as e:
-        return {"supplemented": [], "error": str(e), "count": 0, "cached": False}
-
-    return {
-        "supplemented": [
-            {"title": r["title"], "snippet": r["snippet"], "date": r["date"], "url": r["url"]}
-            for r in results
-        ],
-        "cached": False,
-        "count": len(results),
-    }
+    return {"supplemented": [], "count": 0, "cached": False, "disabled": True}
 
 
 @router.get("/{symbol}")

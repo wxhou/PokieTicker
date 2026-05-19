@@ -252,15 +252,15 @@ class MiniMaxTools:
         """Filter out items with SimHash too similar to existing news (Hamming <= 3)."""
         conn = get_conn()
         existing = conn.execute(
-            "SELECT news_id, simhash FROM news_raw WHERE symbol = ? AND simhash IS NOT NULL",
-            (symbol,),
+            "SELECT id, simhash FROM news_raw WHERE simhash IS NOT NULL",
+            (),
         ).fetchall()
         conn.close()
 
         if not existing:
             return new_items
 
-        existing_hashes = {(r["news_id"], r["simhash"]) for r in existing if r["simhash"]}
+        existing_hashes = {(r[0], r[1]) for r in existing if r[1]}
         THRESHOLD = 3
         result = []
         for item in new_items:
