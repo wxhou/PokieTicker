@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useLang } from '../LanguageContext';
-import { t } from '../i18n';
 
 interface Stock {
   symbol: string;

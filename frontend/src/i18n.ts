@@ -226,6 +226,16 @@ const dict: Record<string, Record<Lang, string>> = {
 
   // Footer
   'nav.events': { zh: '事件日历', en: 'Events' },
+
+  // Mobile
+  'mobile.home': { zh: '首页', en: 'Home' },
+  'mobile.events': { zh: '事件', en: 'Events' },
+  'mobile.portfolio': { zh: '组合', en: 'Portfolio' },
+  'mobile.settings': { zh: '更多', en: 'More' },
+  'mobile.search': { zh: '搜索股票...', en: 'Search stock...' },
+  'mobile.whyMove': { zh: '涨跌归因', en: 'Why it moved' },
+  'mobile.viewDetail': { zh: '查看详情', en: 'View detail' },
+  'mobile.noData': { zh: '暂无归因数据', en: 'No attribution data' },
   'footer.disclaimer': {
     zh: '涨讯仅供信息参考，不构成投资建议。股市有风险，投资需谨慎。本平台不具备证券投资咨询资质。',
     en: 'ZhangXun is for informational purposes only, not investment advice. Stock markets carry risks. This platform does not hold securities advisory qualifications.',

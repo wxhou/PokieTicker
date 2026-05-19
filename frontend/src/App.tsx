@@ -14,6 +14,8 @@ import EventCalendar from './components/EventCalendar';
 import { Agentation } from 'agentation';
 import { LanguageProvider, useLang } from './LanguageContext';
 import { t } from './i18n';
+import { useIsMobile } from './hooks/useIsMobile';
+import MobileApp from './MobileApp';
 import './App.css';
 
 const LAST_SYMBOL_KEY = 'zx_last_symbol';
@@ -34,6 +36,7 @@ interface ArticleSelection {
 type Route = 'main' | 'portfolio' | 'events';
 
 function App() {
+  const isMobile = useIsMobile();
   const { lang, setLang, isZh, theme, setTheme } = useLang();
   const [route, setRoute] = useState<Route>('main');
   const [activeTickers, setActiveTickers] = useState<string[]>([]);
@@ -345,6 +348,10 @@ function App() {
 
   function displayCode(sym: string) {
     return sym.replace(/\.(SH|SZ)$/, '');
+  }
+
+  if (isMobile) {
+    return <MobileApp />;
   }
 
   return (

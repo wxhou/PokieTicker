@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Query
 from typing import Optional
+from datetime import date as date_type
 
 from backend.database import get_conn
 
@@ -17,6 +18,91 @@ def get_realtime_news(
     This endpoint returns an empty response until a proper search API is integrated.
     """
     return {"supplemented": [], "count": 0, "cached": False, "disabled": True}
+
+
+@router.get("/{symbol}/attribution")
+def get_attribution(symbol: str):
+    """Get top 3 attribution reasons for today's price movement."""
+    conn = get_conn()
+    symbol = symbol.upper()
+    today = date_type.today().isoformat()
+
+    # Get today's price change
+    price_row = conn.execute(
+        "SELECT close, pct_chg FROM ohlc WHERE symbol = ? AND date = ?",
+        (symbol, today),
+    ).fetchone()
+
+    # Also try the most recent date if today has no data
+    if not price_row:
+        price_row = conn.execute(
+            "SELECT close, pct_chg FROM ohlc WHERE symbol = ? ORDER BY date DESC LIMIT 1",
+            (symbol,),
+        ).fetchone()
+
+    price_change_pct = price_row["pct_chg"] if price_row else None
+
+    # Get today's news with sentiment
+    rows = conn.execute(
+        """SELECT na.news_id, nr.title, nr.source_type,
+                  l1.sentiment, l1.key_discussion, l1.relevance
+           FROM news_aligned na
+           JOIN news_raw nr ON na.news_id = nr.id
+           LEFT JOIN layer1_results l1 ON na.news_id = l1.news_id AND l1.symbol = ?
+           WHERE na.symbol = ? AND na.trade_date = ?
+           ORDER BY
+             CASE l1.relevance WHEN 'relevant' THEN 0 ELSE 1 END,
+             CASE l1.sentiment WHEN 'positive' THEN 0
+                               WHEN 'negative' THEN 1
+                               ELSE 2 END
+           LIMIT 5""",
+        (symbol, symbol, today),
+    ).fetchall()
+
+    # If no news today, try most recent date with news
+    if not rows:
+        latest = conn.execute(
+            "SELECT trade_date FROM news_aligned WHERE symbol = ? ORDER BY trade_date DESC LIMIT 1",
+            (symbol,),
+        ).fetchone()
+        if latest:
+            rows = conn.execute(
+                """SELECT na.news_id, nr.title, nr.source_type,
+                          l1.sentiment, l1.key_discussion, l1.relevance
+                   FROM news_aligned na
+                   JOIN news_raw nr ON na.news_id = nr.id
+                   LEFT JOIN layer1_results l1 ON na.news_id = l1.news_id AND l1.symbol = ?
+                   WHERE na.symbol = ? AND na.trade_date = ?
+                   ORDER BY
+                     CASE l1.relevance WHEN 'relevant' THEN 0 ELSE 1 END,
+                     CASE l1.sentiment WHEN 'positive' THEN 0
+                                       WHEN 'negative' THEN 1
+                                       ELSE 2 END
+                   LIMIT 5""",
+                (symbol, symbol, latest["trade_date"]),
+            ).fetchall()
+
+    conn.close()
+
+    # Sort: relevant first, then positive/negative before neutral
+    reasons = [
+        {
+            "news_id": r["news_id"],
+            "title": r["title"],
+            "sentiment": r["sentiment"],
+            "source_type": r["source_type"],
+            "key_discussion": (r["key_discussion"] or "")[:50] if r["sentiment"] == "neutral" else r["key_discussion"],
+        }
+        for r in rows
+        if r["title"]
+    ][:3]
+
+    return {
+        "symbol": symbol,
+        "date": today,
+        "price_change_pct": price_change_pct,
+        "reasons": reasons,
+    }
 
 
 @router.get("/{symbol}")
