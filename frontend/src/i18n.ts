@@ -236,6 +236,10 @@ const dict: Record<string, Record<Lang, string>> = {
   'mobile.whyMove': { zh: '涨跌归因', en: 'Why it moved' },
   'mobile.viewDetail': { zh: '查看详情', en: 'View detail' },
   'mobile.noData': { zh: '暂无归因数据', en: 'No attribution data' },
+  'mobile.attribution.contradiction': {
+    zh: '新闻与价格方向相反',
+    en: 'News contradicts price move',
+  },
   'footer.disclaimer': {
     zh: '涨讯仅供信息参考，不构成投资建议。股市有风险，投资需谨慎。本平台不具备证券投资咨询资质。',
     en: 'ZhangXun is for informational purposes only, not investment advice. Stock markets carry risks. This platform does not hold securities advisory qualifications.',

@@ -9,6 +9,8 @@ interface AttributionReason {
   sentiment: string | null;
   source_type: string | null;
   key_discussion: string | null;
+  contradiction?: boolean;
+  ret_t1?: number | null;
 }
 
 interface AttributionData {
@@ -47,6 +49,16 @@ function IconMinus() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+function IconWarning() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   );
 }
@@ -153,7 +165,7 @@ export default function AttributionCard({ symbol, newsRef }: { symbol: string; n
         {data.reasons.slice(0, 3).map((r) => (
           <div
             key={r.news_id}
-            className={`attr-reason ${sentimentClass(r.sentiment)}`}
+            className={`attr-reason ${sentimentClass(r.sentiment)}${r.contradiction ? ' attr-reason-contradicts' : ''}`}
             onClick={() => {
               if (newsRef?.current) {
                 newsRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -163,11 +175,19 @@ export default function AttributionCard({ symbol, newsRef }: { symbol: string; n
             <span className="attr-reason-icon">{getSentimentIcon(r.sentiment)}</span>
             <div className="attr-reason-content">
               <span className="attr-reason-title">{r.title}</span>
-              {r.source_type && (
-                <span className="attr-reason-badge">
-                  {SOURCE_LABELS[r.source_type]?.[lang] ?? r.source_type}
-                </span>
-              )}
+              <div className="attr-reason-meta">
+                {r.source_type && (
+                  <span className="attr-reason-badge">
+                    {SOURCE_LABELS[r.source_type]?.[lang] ?? r.source_type}
+                  </span>
+                )}
+                {r.contradiction && (
+                  <span className="attr-reason-warn" title={t('mobile.attribution.contradiction', lang)}>
+                    <IconWarning />
+                    {t('mobile.attribution.contradiction', lang)}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         ))}
