@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { useLang } from '../../LanguageContext';
-import { t } from '../../i18n';
+import { useLang } from '../LanguageContext';
+import { t } from '../i18n';
 
 interface AttributionReason {
   news_id: string;

@@ -10,12 +10,14 @@ import RangeNewsPanel from './components/RangeNewsPanel';
 import SimilarDaysPanel from './components/SimilarDaysPanel';
 import Portfolio from './components/Portfolio';
 import EventCalendar from './components/EventCalendar';
+import AttributionCard from './components/AttributionCard';
 import { Agentation } from 'agentation';
 import { LanguageProvider, useLang } from './LanguageContext';
 import { t } from './i18n';
 import { useIsMobile } from './hooks/useIsMobile';
 import MobileApp from './MobileApp';
 import './App.css';
+import './components/AttributionCard.css';
 
 const LAST_SYMBOL_KEY = 'zx_last_symbol';
 
@@ -323,6 +325,7 @@ function App() {
     }
     return (
       <>
+        <AttributionCard symbol={selectedSymbol} />
         <NewsPanel
           symbol={selectedSymbol}
           hoveredDate={effectiveDate}

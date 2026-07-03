@@ -1,0 +1,313 @@
+/* Shared AttributionCard styles — used by both desktop App.tsx and mobile MobileHome.tsx.
+   Mobile-only layout (margin: 0 16px) is intentional for the mobile home page; desktop
+   container supplies its own padding. */
+
+/* ── Skeleton loaders ── */
+.attribution-skeleton {
+  animation: attr-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.attr-skeleton-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.attr-skeleton-badge {
+  width: 60px;
+  height: 12px;
+  background: linear-gradient(90deg, rgba(201,169,110,0.1) 0%, rgba(201,169,110,0.2) 50%, rgba(201,169,110,0.1) 100%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: attr-skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.attr-skeleton-change {
+  width: 50px;
+  height: 14px;
+  background: linear-gradient(90deg, rgba(61,184,126,0.1) 0%, rgba(61,184,126,0.2) 50%, rgba(61,184,126,0.1) 100%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: attr-skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.attr-skeleton-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attr-skeleton-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
+}
+
+.attr-skeleton-icon {
+  width: 16px;
+  height: 16px;
+  background: linear-gradient(90deg, rgba(201,169,110,0.1) 0%, rgba(201,169,110,0.2) 50%, rgba(201,169,110,0.1) 100%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: attr-skeleton-shimmer 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.attr-skeleton-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.attr-skeleton-title {
+  height: 14px;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 100%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: attr-skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.attr-skeleton-title.short {
+  width: 70%;
+}
+
+.attr-skeleton-badge-sm {
+  width: 40px;
+  height: 10px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 100%);
+  background-size: 200% 100%;
+  border-radius: 3px;
+  animation: attr-skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes attr-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes attr-skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ── Empty / header / reasons ── */
+.attribution-card {
+  padding: 12px 16px 14px;
+  background: var(--bg-surface);
+  border: 1px solid rgba(201, 169, 110, 0.12);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.attribution-card::before {
+  display: none;
+}
+
+.attribution-empty {
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 13px;
+  padding: 14px 0;
+}
+
+.attr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.attr-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.attr-change {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+.attr-change.up {
+  color: var(--accent-green-bright, #3db87e);
+}
+
+.attr-change.down {
+  color: var(--accent-red-bright, #e63946);
+}
+
+.attr-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attr-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  margin-bottom: 4px;
+}
+
+@media (hover: hover) {
+  .attr-reason:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.attr-reason:active {
+  transform: scale(0.98);
+}
+
+.attr-reason-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.attr-reason-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.attr-reason-title {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.attr-reason-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.attr-reason-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.attr-reason-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 193, 7, 0.16);
+  color: #ffb74d;
+  border: 1px solid rgba(255, 193, 7, 0.32);
+  letter-spacing: 0.02em;
+}
+
+.attr-reason-warn svg {
+  flex-shrink: 0;
+}
+
+.attr-reason-contradicts {
+  background: rgba(255, 193, 7, 0.05);
+  border-left: 2px solid #ffb74d;
+}
+
+.attr-positive .attr-reason-title {
+  color: var(--accent-green-bright, #3db87e);
+}
+
+.attr-negative .attr-reason-title {
+  color: var(--accent-red-bright, #e63946);
+}
+
+.attr-confidence {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-right: 6px;
+  letter-spacing: 0.3px;
+  font-weight: 500;
+}
+
+.attr-confidence-high {
+  background: rgba(76, 175, 80, 0.18);
+  color: #81c784;
+}
+
+.attr-confidence-medium {
+  background: rgba(255, 193, 7, 0.18);
+  color: #ffb74d;
+}
+
+.attr-confidence-low {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+}
+
+.attr-source {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: right;
+  opacity: 0.85;
+}
+
+.attr-narrative {
+  margin: 10px 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(176, 132, 64, 0.10), rgba(176, 132, 64, 0.04));
+  border-left: 3px solid #b08040;
+  position: relative;
+}
+
+.attr-narrative-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #b08040;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.attr-narrative-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  font-weight: 500;
+}

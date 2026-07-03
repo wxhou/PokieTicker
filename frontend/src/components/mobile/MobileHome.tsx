@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import CandlestickChart from '../CandlestickChart';
 import NewsPanel from '../NewsPanel';
 import NewsCategoryPanel from '../NewsCategoryPanel';
-import AttributionCard from './AttributionCard';
+import AttributionCard from '../AttributionCard';
 import BottomSheet from './BottomSheet';
 import SimilarDaysPanel from '../SimilarDaysPanel';
 import { useLang } from '../../LanguageContext';
