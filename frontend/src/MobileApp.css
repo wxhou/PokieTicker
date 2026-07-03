@@ -796,6 +796,37 @@
   color: var(--accent-red-bright, #e63946);
 }
 
+.attr-confidence {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-right: 6px;
+  letter-spacing: 0.3px;
+  font-weight: 500;
+}
+.attr-confidence-high {
+  background: rgba(76, 175, 80, 0.18);
+  color: #81c784;
+}
+.attr-confidence-medium {
+  background: rgba(255, 193, 7, 0.18);
+  color: #ffb74d;
+}
+.attr-confidence-low {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+}
+
+.attr-source {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: right;
+  opacity: 0.85;
+}
+
 /* ── Mobile Home ── */
 
 .mobile-home {

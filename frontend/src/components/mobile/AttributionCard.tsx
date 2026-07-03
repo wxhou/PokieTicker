@@ -63,6 +63,23 @@ function sentimentClass(s: string | null): string {
   return 'attr-neutral';
 }
 
+type ConfidenceLevel = 'high' | 'medium' | 'low';
+
+function confidenceLevel(reasonCount: number): ConfidenceLevel {
+  if (reasonCount >= 5) return 'high';
+  if (reasonCount >= 3) return 'medium';
+  return 'low';
+}
+
+function confidenceLabel(level: ConfidenceLevel, lang: 'zh' | 'en'): string {
+  const labels: Record<ConfidenceLevel, Record<'zh' | 'en', string>> = {
+    high:   { zh: '信号强', en: 'Strong signal' },
+    medium: { zh: '中等信号', en: 'Moderate signal' },
+    low:    { zh: '信号弱', en: 'Weak signal' },
+  };
+  return labels[level][lang];
+}
+
 export default function AttributionCard({ symbol, newsRef }: { symbol: string; newsRef?: React.RefObject<HTMLDivElement | null> }) {
   const { lang } = useLang();
   const [data, setData] = useState<AttributionData | null>(null);
@@ -121,6 +138,11 @@ export default function AttributionCard({ symbol, newsRef }: { symbol: string; n
     <div className="attribution-card">
       <div className="attr-header">
         <span className="attr-title">{t('mobile.whyMove', lang)}</span>
+        <span
+          className={`attr-confidence attr-confidence-${confidenceLevel(data.reasons.length)}`}
+        >
+          {confidenceLabel(confidenceLevel(data.reasons.length), lang)}
+        </span>
         {data.price_change_pct != null && (
           <span className={`attr-change ${data.price_change_pct >= 0 ? 'up' : 'down'}`}>
             {data.price_change_pct >= 0 ? '+' : ''}{data.price_change_pct.toFixed(2)}%
@@ -149,6 +171,11 @@ export default function AttributionCard({ symbol, newsRef }: { symbol: string; n
             </div>
           </div>
         ))}
+      </div>
+      <div className="attr-source">
+        {lang === 'zh'
+          ? `基于最近 ${data.reasons.length} 条相关新闻`
+          : `Based on ${data.reasons.length} recent news article${data.reasons.length === 1 ? '' : 's'}`}
       </div>
     </div>
   );
