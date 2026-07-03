@@ -60,6 +60,8 @@ CLAUDE.md
 .gstack/
 .playwright-mcp/
 playwright/
+.codegraph/
+.opencode/
 
 # Test results & screenshots
 frontend/test-results/
