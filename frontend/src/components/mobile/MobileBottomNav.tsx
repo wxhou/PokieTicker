@@ -1,5 +1,6 @@
 import { useLang } from '../../LanguageContext';
 import { t } from '../../i18n';
+import type { JSX } from 'react';
 
 export type MobileRoute = 'home' | 'events' | 'portfolio' | 'settings';
 

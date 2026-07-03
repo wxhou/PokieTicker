@@ -8,7 +8,6 @@ import RangeAnalysisPanel from './components/RangeAnalysisPanel';
 import RangeQueryPopup from './components/RangeQueryPopup';
 import RangeNewsPanel from './components/RangeNewsPanel';
 import SimilarDaysPanel from './components/SimilarDaysPanel';
-import PredictionPanel from './components/PredictionPanel';
 import Portfolio from './components/Portfolio';
 import EventCalendar from './components/EventCalendar';
 import { Agentation } from 'agentation';
@@ -500,9 +499,6 @@ function App() {
         )}
         {selectedSymbol && (
           <>
-          <div className="prediction-area">
-            <PredictionPanel symbol={selectedSymbol} />
-          </div>
           <div className="news-area">
             <NewsCategoryPanel
               symbol={selectedSymbol}
@@ -516,7 +512,11 @@ function App() {
       </main>
 
       <footer className="global-disclaimer">
-        {t('footer.disclaimer', lang)}
+        <div>{t('footer.disclaimer', lang)}</div>
+        <details className="footer-details">
+          <summary>{t('footer.whatWeDontDo.title', lang)}</summary>
+          <pre className="footer-details-body">{t('footer.whatWeDontDo.body', lang)}</pre>
+        </details>
       </footer>
       <Agentation />
     </div>

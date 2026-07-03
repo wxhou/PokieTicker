@@ -100,7 +100,7 @@ const PERIOD_DAYS: Record<Period, number> = {
 const PERIOD_LABELS_ZH: Record<Period, string> = { '1W': '近1周', '1M': '近1月', '3M': '近3月', '1Y': '近1年', 'ALL': '全部' };
 const PERIOD_LABELS_EN: Record<Period, string> = { '1W': '1W', '1M': '1M', '3M': '3M', '1Y': '1Y', 'ALL': 'All' };
 
-export default function CandlestickChart({ symbol, livePrice, lockedNewsId, highlightedArticleIds, highlightColor, onHover, onRangeSelect, onArticleSelect, onDayClick }: Props) {
+export default function CandlestickChart({ symbol, livePrice, lockedNewsId: _lockedNewsId, highlightedArticleIds, highlightColor, onHover, onRangeSelect, onArticleSelect, onDayClick }: Props) {
   const { lang, theme } = useLang();
   const svgRef = useRef<SVGSVGElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -150,7 +150,7 @@ export default function CandlestickChart({ symbol, livePrice, lockedNewsId, high
       const scale = 1 + 0.3 * Math.sin(progress * Math.PI);
 
       // Redraw all particles, but scale the hovered one
-      drawParticlesAnimated(target, scale, ctx, dpr);
+      drawParticlesAnimated(target!, scale, ctx!, dpr);
 
       if (progress < 1) {
         requestAnimationFrame(animate);

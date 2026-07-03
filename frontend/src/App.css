@@ -3439,6 +3439,32 @@ body {
   letter-spacing: 0.5px;
 }
 
+.footer-details {
+  margin-top: 4px;
+  text-align: left;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.footer-details summary {
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.85;
+  user-select: none;
+}
+.footer-details summary:hover {
+  opacity: 1;
+}
+.footer-details-body {
+  font-family: inherit;
+  font-size: 10px;
+  white-space: pre-wrap;
+  margin: 4px 0 0 0;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+
 /* ===== Portfolio Route Layout ===== */
 .app-main.portfolio-route {
   display: flex;

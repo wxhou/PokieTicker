@@ -240,6 +240,14 @@ const dict: Record<string, Record<Lang, string>> = {
     zh: '涨讯仅供信息参考，不构成投资建议。股市有风险，投资需谨慎。本平台不具备证券投资咨询资质。',
     en: 'ZhangXun is for informational purposes only, not investment advice. Stock markets carry risks. This platform does not hold securities advisory qualifications.',
   },
+  'footer.whatWeDontDo.title': {
+    zh: '我们不做什么',
+    en: "What we don't do",
+  },
+  'footer.whatWeDontDo.body': {
+    zh: '• 不预测涨跌: 我们的 AI 帮你看懂为什么涨跌, 不预测方向\n• 不覆盖全部 A 股 5000+ 只: 你添加自选, 我们按需拉取\n• 不提供投资建议: 我们是分析工具, 不是券商, 无证券资质\n• 不保证 AI 解读 100% 准确: AI 可能说错, 每条解读都附置信度',
+    en: "• Don't predict direction: our AI helps you understand why prices move, not which way they'll go\n• Don't cover all 5,000+ A-shares: you add tickers to your watchlist, we fetch on demand\n• Don't give investment advice: we're an analysis tool, not a brokerage, and we hold no securities qualifications\n• Don't claim 100% AI accuracy: AI can be wrong, every interpretation shows a confidence score",
+  },
 };
 
 export function t(key: string, lang: Lang): string {
