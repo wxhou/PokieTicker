@@ -1,7 +1,9 @@
 """Prediction API endpoints.
 
-WARNING: The ML models were trained on US stocks (BABA, TSLA, AAPL, NVDA, GLD).
-A-share models have NOT been retrained. All predictions are marked as experimental.
+Note: Models were originally trained on US stocks (BABA, TSLA, AAPL, NVDA, GLD)
+and have since been retrained on A-share data (28 tickers, 2026-04-26). Per-ticker
+accuracy on A-share is at or below random for several tickers — treat all
+predictions as experimental / not investment advice.
 """
 
 import json
@@ -15,7 +17,8 @@ MODELS_DIR = Path(__file__).resolve().parent.parent.parent / "ml" / "models"
 
 
 EXPERIMENTAL_WARNING = (
-    "实验性功能：模型基于美股训练，A股模型未重训，结果仅供参考，不构成投资建议。"
+    "实验性功能：模型于2026-04-26用28只A股重训，"
+    "准确率接近随机，结果仅供参考，不构成投资建议。"
 )
 
 EXPERIMENTAL_RESPONSE = {

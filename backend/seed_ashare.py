@@ -125,6 +125,11 @@ def seed_stock(stock: dict) -> dict:
             _idempotent_register_ticker(conn, symbol, name)
             inserted = _idempotent_upsert_ohlc(conn, ohlc_rows, symbol)
             result["ohlc_rows"] = inserted
+            # Mark ticker as active so scheduler picks it up on next cycle
+            conn.execute(
+                "UPDATE tickers SET last_ohlc_fetch = ? WHERE symbol = ?",
+                (end_date, symbol),
+            )
             conn.commit()
             logger.info("[%s] Inserted/replaced %d OHLC rows", code, inserted)
         finally:
