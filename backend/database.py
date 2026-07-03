@@ -195,6 +195,8 @@ def get_conn() -> sqlite3.Connection:
 _MIGRATIONS = [
     "ALTER TABLE news_raw ADD COLUMN source_type TEXT NOT NULL DEFAULT 'news'",
     "CREATE INDEX IF NOT EXISTS idx_news_raw_source_type ON news_raw(source_type)",
+    "ALTER TABLE news_aligned ADD COLUMN contradiction INTEGER DEFAULT 0",
+    "CREATE INDEX IF NOT EXISTS idx_news_aligned_contradiction ON news_aligned(contradiction)",
 ]
 
 

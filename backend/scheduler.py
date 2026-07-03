@@ -373,7 +373,10 @@ def _backfill_events():
         elif is_policy_event(title, desc):
             category = "policy"
         else:
-            continue  # Skip non-policy news (too many, not useful as events)
+            # Include news-type articles as 'news' events (was previously dropped).
+            # Note: this expands the events table by ~9K rows. If too noisy, we
+            # can filter by sentiment != 'neutral' in a later migration.
+            category = "news"
 
         # Get sentiment from layer1
         impact = None
@@ -401,6 +404,19 @@ def _backfill_events():
             link_flash_event(conn, event_id, title, desc)
         elif category == "policy":
             link_policy_event(conn, event_id, title, desc)
+        elif category == "news":
+            # News events: link to the first ticker this news is mapped to.
+            # Most news articles correspond to a single ticker that the
+            # scheduler picked up via news_ticker.
+            nt = conn.execute(
+                "SELECT symbol FROM news_ticker WHERE news_id = ? LIMIT 1",
+                (news_id,),
+            ).fetchone()
+            if nt:
+                conn.execute(
+                    "INSERT OR IGNORE INTO event_stock (event_id, symbol) VALUES (?, ?)",
+                    (event_id, nt["symbol"]),
+                )
 
         event_count += 1
 

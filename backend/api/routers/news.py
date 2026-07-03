@@ -45,7 +45,8 @@ def get_attribution(symbol: str):
     # Get today's news with sentiment
     rows = conn.execute(
         """SELECT na.news_id, nr.title, nr.source_type,
-                  l1.sentiment, l1.key_discussion, l1.relevance
+                  l1.sentiment, l1.key_discussion, l1.relevance,
+                  na.contradiction, na.ret_t1
            FROM news_aligned na
            JOIN news_raw nr ON na.news_id = nr.id
            LEFT JOIN layer1_results l1 ON na.news_id = l1.news_id AND l1.symbol = ?
@@ -68,7 +69,8 @@ def get_attribution(symbol: str):
         if latest:
             rows = conn.execute(
                 """SELECT na.news_id, nr.title, nr.source_type,
-                          l1.sentiment, l1.key_discussion, l1.relevance
+                          l1.sentiment, l1.key_discussion, l1.relevance,
+                          na.contradiction, na.ret_t1
                    FROM news_aligned na
                    JOIN news_raw nr ON na.news_id = nr.id
                    LEFT JOIN layer1_results l1 ON na.news_id = l1.news_id AND l1.symbol = ?
@@ -92,6 +94,8 @@ def get_attribution(symbol: str):
             "sentiment": r["sentiment"],
             "source_type": r["source_type"],
             "key_discussion": (r["key_discussion"] or "")[:50] if r["sentiment"] == "neutral" else r["key_discussion"],
+            "contradiction": bool(r["contradiction"]),
+            "ret_t1": r["ret_t1"],
         }
         for r in rows
         if r["title"]
