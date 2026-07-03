@@ -240,6 +240,8 @@ const dict: Record<string, Record<Lang, string>> = {
     zh: '新闻与价格方向相反',
     en: 'News contradicts price move',
   },
+  'mobile.attribution.aiLabel': { zh: 'AI 总结', en: 'AI summary' },
+  'mobile.attribution.aiLoading': { zh: 'AI 正在分析…', en: 'AI analyzing…' },
   'footer.disclaimer': {
     zh: '涨讯仅供信息参考，不构成投资建议。股市有风险，投资需谨慎。本平台不具备证券投资咨询资质。',
     en: 'ZhangXun is for informational purposes only, not investment advice. Stock markets carry risks. This platform does not hold securities advisory qualifications.',

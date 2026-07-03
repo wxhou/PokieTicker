@@ -858,6 +858,35 @@
   opacity: 0.85;
 }
 
+.attr-narrative {
+  margin: 10px 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(176, 132, 64, 0.10), rgba(176, 132, 64, 0.04));
+  border-left: 3px solid #b08040;
+  position: relative;
+}
+
+.attr-narrative-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #b08040;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.attr-narrative-text {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
 /* ── Mobile Home ── */
 
 .mobile-home {

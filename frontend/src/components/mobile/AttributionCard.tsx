@@ -13,11 +13,18 @@ interface AttributionReason {
   ret_t1?: number | null;
 }
 
+interface AiSummary {
+  summary: string;
+  model?: string;
+  cached?: boolean;
+}
+
 interface AttributionData {
   symbol: string;
   date: string;
   price_change_pct: number | null;
   reasons: AttributionReason[];
+  ai_summary?: AiSummary;
 }
 
 const SOURCE_LABELS: Record<string, Record<string, string>> = {
@@ -59,6 +66,14 @@ function IconWarning() {
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
       <line x1="12" y1="9" x2="12" y2="13" />
       <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
+function IconSparkle() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2l2.39 7.36L22 12l-7.61 2.64L12 22l-2.39-7.36L2 12l7.61-2.64z" />
     </svg>
   );
 }
@@ -161,6 +176,15 @@ export default function AttributionCard({ symbol, newsRef }: { symbol: string; n
           </span>
         )}
       </div>
+      {data.ai_summary?.summary && (
+        <div className="attr-narrative">
+          <div className="attr-narrative-label">
+            <IconSparkle />
+            <span>{t('mobile.attribution.aiLabel', lang)}</span>
+          </div>
+          <p className="attr-narrative-text">{data.ai_summary.summary}</p>
+        </div>
+      )}
       <div className="attr-reasons">
         {data.reasons.slice(0, 3).map((r) => (
           <div

@@ -18,6 +18,132 @@ from backend.ai.minimax import _get_client, _extract_text_from_response
 logger = logging.getLogger(__name__)
 
 
+# Sentinel news_id used to cache the per-day attribution summary in layer2_results.
+# Using a synthetic id lets us reuse the existing cache table instead of adding
+# a new schema for one column.
+_ATTRIBUTION_SUMMARY_PREFIX = "_attr_summary:"
+
+
+def get_attribution_summary(
+    symbol: str,
+    trade_date: str,
+    evidence: list[dict],
+    price_change_pct: Optional[float],
+    contradictions: list[dict],
+) -> Dict[str, Any]:
+    """Generate a 2-3 sentence AI narrative explaining why the stock moved today.
+
+    Args:
+        symbol: stock symbol, e.g. "600519.SH"
+        trade_date: YYYY-MM-DD
+        evidence: top 3 reasons from get_attribution (title, sentiment, source_type, contradiction)
+        price_change_pct: today's pct change (decimal, e.g. 0.027 = +2.7%)
+        contradictions: subset of evidence where sentiment disagrees with price direction
+
+    Returns:
+        {"summary": "2-3 sentence narrative", "cached": bool, "model": "MiniMax-M2.5"}
+
+    The narrative is grounded in the evidence chain so the user can verify
+    every claim by clicking the source news. If MiniMax is unavailable, returns
+    a graceful fallback pointing the user to the evidence list instead of
+    hallucinating a story.
+    """
+    summary_key = f"{_ATTRIBUTION_SUMMARY_PREFIX}{trade_date}"
+
+    # Check cache
+    conn = get_conn()
+    cached = conn.execute(
+        "SELECT discussion, growth_reasons FROM layer2_results WHERE news_id = ? AND symbol = ?",
+        (summary_key, symbol),
+    ).fetchone()
+    conn.close()
+
+    if cached and cached["discussion"]:
+        return {
+            "summary": cached["discussion"],
+            "model": "MiniMax-M2.5",
+            "cached": True,
+        }
+
+    # Build prompt — keep it short so the model focuses on evidence-grounded synthesis.
+    direction = "上涨" if (price_change_pct or 0) > 0 else "下跌"
+    pct_str = f"{abs((price_change_pct or 0)) * 100:.2f}%"
+
+    lines = []
+    sent_label = {"positive": "利好", "negative": "利空", "neutral": "中性"}
+    for i, ev in enumerate(evidence, 1):
+        sentiment = ev.get("sentiment")
+        sent = sent_label.get(sentiment or "", "中性")
+        contradicts = bool(ev.get("contradiction"))
+        flag = " ⚠️(与价格方向相反)" if contradicts else ""
+        title = ev.get("title") or ""
+        lines.append(f"{i}. [{sent}{flag}] {title}")
+
+    prompt = f"""基于以下今日 {symbol} 的相关新闻，写 2-3 句话总结今日股价{direction} {pct_str} 的主要原因。
+
+要求：
+1. 严格根据提供的新闻信息总结，不引入未列出的事件或数据
+2. 如果新闻与价格方向矛盾（如利好但跌），明确指出"市场反应与新闻方向不一致"
+3. 如果新闻不足以判断涨跌原因，直接说"现有新闻不足以判断"
+4. 用中文，简洁自然，像财经编辑写的一句话摘要
+5. 不要使用"根据以上新闻""综合来看"等套话
+
+新闻：
+{chr(10).join(lines)}
+
+只返回摘要文本，不要 JSON 或其他格式。"""
+
+    summary_text = ""
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model="MiniMax-M2.5",
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+        )
+        summary_text = _extract_text_from_response(response).strip()
+        # Strip any leading labels the model might prepend.
+        for prefix in ["摘要:", "总结:", "分析:", "Summary:", "Analysis:"]:
+            if summary_text.startswith(prefix):
+                summary_text = summary_text[len(prefix):].strip()
+    except Exception as e:
+        logger.warning("summarize_attribution failed for %s on %s: %s", symbol, trade_date, e)
+        # Graceful fallback: don't hallucinate. Point the user to the evidence.
+        if evidence:
+            summary_text = (
+                f"AI 总结暂不可用 ({type(e).__name__})，请参考下方证据链。"
+                if not contradictions
+                else f"今日新闻与价格方向存在矛盾（{len(contradictions)} 条），详见下方标注 ⚠️ 的条目。"
+            )
+        else:
+            summary_text = "暂无相关新闻，AI 无法生成总结。"
+
+    # Cache in layer2_results using the synthetic key.
+    conn = get_conn()
+    conn.execute(
+        """INSERT OR REPLACE INTO layer2_results
+           (news_id, symbol, discussion, growth_reasons, decrease_reasons, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (
+            summary_key,
+            symbol,
+            summary_text,
+            "",  # unused for summary
+            "",
+            datetime.now(timezone.utc).isoformat(),
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    return {
+        "summary": summary_text,
+        "model": "MiniMax-M2.5",
+        "cached": False,
+    }
+
+
 def get_cached(news_id: str, symbol: str) -> Optional[Dict[str, Any]]:
     """Check if a deep analysis is already cached."""
     conn = get_conn()

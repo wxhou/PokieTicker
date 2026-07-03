@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import date as date_type
 
 from backend.database import get_conn
+from backend.pipeline.layer2 import get_attribution_summary
 
 router = APIRouter()
 
@@ -22,7 +23,7 @@ def get_realtime_news(
 
 @router.get("/{symbol}/attribution")
 def get_attribution(symbol: str):
-    """Get top 3 attribution reasons for today's price movement."""
+    """Get top 3 attribution reasons for today's price movement, plus an AI summary."""
     conn = get_conn()
     symbol = symbol.upper()
     today = date_type.today().isoformat()
@@ -60,6 +61,7 @@ def get_attribution(symbol: str):
         (symbol, symbol, today),
     ).fetchall()
 
+    trade_date_used = today
     # If no news today, try most recent date with news
     if not rows:
         latest = conn.execute(
@@ -67,6 +69,7 @@ def get_attribution(symbol: str):
             (symbol,),
         ).fetchone()
         if latest:
+            trade_date_used = latest["trade_date"]
             rows = conn.execute(
                 """SELECT na.news_id, nr.title, nr.source_type,
                           l1.sentiment, l1.key_discussion, l1.relevance,
@@ -101,11 +104,21 @@ def get_attribution(symbol: str):
         if r["title"]
     ][:3]
 
+    # Generate AI summary grounded in evidence. Falls back gracefully on errors.
+    summary_payload = get_attribution_summary(
+        symbol=symbol,
+        trade_date=trade_date_used,
+        evidence=reasons,
+        price_change_pct=price_change_pct,
+        contradictions=[r for r in reasons if r["contradiction"]],
+    )
+
     return {
         "symbol": symbol,
-        "date": today,
+        "date": trade_date_used,
         "price_change_pct": price_change_pct,
         "reasons": reasons,
+        "ai_summary": summary_payload,
     }
 
 
