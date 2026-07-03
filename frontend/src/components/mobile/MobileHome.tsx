@@ -22,6 +22,8 @@ export default function MobileHome({
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeCategoryIds, setActiveCategoryIds] = useState<string[]>([]);
+  const [selectedArticle, setSelectedArticle] = useState<{ newsId: string; date: string } | null>(null);
+  const [lockedArticleId, setLockedArticleId] = useState<string | null>(null);
   const newsRef = useRef<HTMLDivElement | null>(null);
 
   const handleHover = useCallback(
@@ -38,6 +40,19 @@ export default function MobileHome({
     },
     []
   );
+
+  const handleArticleSelect = useCallback(
+    (article: { newsId: string; date: string } | null) => {
+      setSelectedArticle(article);
+      setLockedArticleId(article?.newsId ?? null);
+    },
+    []
+  );
+
+  const handleUnlock = useCallback(() => {
+    setLockedArticleId(null);
+    setSelectedArticle(null);
+  }, []);
 
   const price = tickerChanges[selectedSymbol]?.price;
   const change = tickerChanges[selectedSymbol]?.change;
@@ -67,11 +82,11 @@ export default function MobileHome({
           <CandlestickChart
             symbol={selectedSymbol}
             livePrice={tickerChanges[selectedSymbol]?.price ?? null}
-            lockedNewsId={null}
+            lockedNewsId={lockedArticleId}
             highlightedArticleIds={activeCategoryIds.length > 0 ? activeCategoryIds : null}
             onHover={handleHover}
             onRangeSelect={() => {}}
-            onArticleSelect={() => {}}
+            onArticleSelect={handleArticleSelect}
             onDayClick={(date: string) => setSelectedDay(date)}
           />
         ) : (
@@ -95,9 +110,9 @@ export default function MobileHome({
           <NewsPanel
             symbol={selectedSymbol}
             hoveredDate={hoveredDate}
-            highlightedNewsId={null}
-            isLocked={false}
-            onUnlock={() => {}}
+            highlightedNewsId={selectedArticle?.newsId ?? null}
+            isLocked={lockedArticleId != null}
+            onUnlock={handleUnlock}
             highlightedCategoryIds={activeCategoryIds.length > 0 ? activeCategoryIds : undefined}
           />
         </div>

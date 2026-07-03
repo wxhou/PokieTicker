@@ -59,7 +59,13 @@
   backdrop-filter: blur(10px);
 }
 
-.mobile-header-btn:hover {
+@media (hover: hover) {
+  .mobile-header-btn:hover {
+    background: rgba(201, 169, 110, 0.15);
+    border-color: var(--accent-primary);
+  }
+}
+.mobile-header-btn:active {
   background: rgba(201, 169, 110, 0.15);
   border-color: var(--accent-primary);
 }
@@ -143,7 +149,12 @@
   transition: background 0.15s;
 }
 
-.mobile-search-item:hover {
+@media (hover: hover) {
+  .mobile-search-item:hover {
+    background: rgba(201, 169, 110, 0.1);
+  }
+}
+.mobile-search-item:active {
   background: rgba(201, 169, 110, 0.1);
 }
 
@@ -732,9 +743,11 @@
   margin-bottom: 4px;
 }
 
-.attr-reason:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.08);
+@media (hover: hover) {
+  .attr-reason:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
 }
 
 .attr-reason:active {
@@ -1021,7 +1034,12 @@
   transition: all 0.2s ease;
 }
 
-.mobile-settings-opt:hover {
+@media (hover: hover) {
+  .mobile-settings-opt:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+.mobile-settings-opt:active {
   background: rgba(255, 255, 255, 0.08);
 }
 
